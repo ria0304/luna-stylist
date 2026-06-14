@@ -1,20 +1,52 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Luna — Conversational AI Stylist
 
-# Run and deploy your AI Studio app
+Luna is a conversational wardrobe assistant that lets you talk to your closet in plain English.
 
-This contains everything you need to run your app locally.
+Built as a standalone chat interface that connects to [WYA](https://github.com/ria0304/WYA-Whats-Your-Aesthetic)'s fashion intelligence API — Luna knows what you own, what your style is, and what you're missing before you say a word.
 
-View your app in AI Studio: https://ai.studio/apps/c72302ad-8ea0-4c04-94f9-f52f2c2d6a1f
+---
 
-## Run Locally
+## What Luna Does
 
-**Prerequisites:**  Node.js
+- **Outfit help** — "What should I wear to college tomorrow?" → real outfits from your actual wardrobe
+- **Wardrobe search** — "Show all my black tops" → instant natural language queries
+- **Gap analysis** — "What am I missing for winter?" → powered by WYA's gap analyzer
+- **Style explanation** — "Why am I a minimalist?" → your Style DNA explained in plain English
 
+---
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## How It Works
+
+Luna is a React frontend with an intent classification layer. It authenticates against WYA's backend API using JWT tokens and routes natural language queries to the correct wardrobe endpoint.
+
+No wardrobe data lives in Luna. WYA is the brain. Luna is the interface.
+
+```
+User message
+    ↓
+Intent classifier
+    ↓
+Route to WYA endpoint
+    ↓
+Format response
+    ↓
+Chat reply
+```
+
+---
+
+## Tech Stack
+
+- React + TypeScript
+- WYA REST API (wardrobe, style, AI endpoints)
+- Intent classifier (natural language → API route)
+
+---
+
+## Related
+
+[WYA — What's Your Aesthetic](https://github.com/ria0304/WYA-Whats-Your-Aesthetic) — the full wardrobe intelligence platform Luna connects to.
+
+---
+
+*Luna is part of the WYA ecosystem. It does not store any wardrobe data independently.*
