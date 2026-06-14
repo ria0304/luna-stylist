@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import { LunaIntent } from '../types';
 import { getIntentMetadata } from '../services/intent';
 import { Sparkles, Search, Dna, AlertCircle, MessageCircle } from 'lucide-react';
@@ -16,7 +11,7 @@ export default function IntentBadge({ intent, visible }: IntentBadgeProps) {
   if (!visible) return null;
 
   const meta = getIntentMetadata(intent);
-  
+
   const getIcon = () => {
     const iconSize = 13;
     switch (intent) {
@@ -34,8 +29,7 @@ export default function IntentBadge({ intent, visible }: IntentBadgeProps) {
   };
 
   return (
-    <div 
-      id={`intent-badge-${intent}`}
+    <div
       className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-mono font-medium border ${meta.color} transition-all duration-300 animate-fade-in`}
     >
       {getIcon()}
