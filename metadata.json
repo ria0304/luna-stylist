@@ -1,0 +1,6 @@
+{
+  "name": "Luna — Conversational AI Stylist",
+  "description": "Luna is a conversational wardrobe assistant that lets you talk to your closet in plain English, powered by WYA's fashion intelligence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
