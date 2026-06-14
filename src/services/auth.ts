@@ -1,30 +1,31 @@
 /**
  * Luna — Auth Service
- * Stores and retrieves WYA JWT tokens from localStorage
+ * Stores and retrieves WYA JWT tokens and session from localStorage.
  */
 
-import { UserSession } from '../types';
+import { UserSession, mapUserSession } from '../types';
 
-const TOKEN_KEY = 'luna_wya_token';
+const TOKEN_KEY   = 'luna_wya_token';
 const SESSION_KEY = 'luna_wya_session';
 
-export const getAuthToken = (): string | null => {
-  return localStorage.getItem(TOKEN_KEY);
-};
+export const getAuthToken = (): string | null =>
+  localStorage.getItem(TOKEN_KEY);
 
 export const getSavedSession = (): UserSession | null => {
-  const sessionStr = localStorage.getItem(SESSION_KEY);
-  if (!sessionStr) return null;
+  const raw = localStorage.getItem(SESSION_KEY);
+  if (!raw) return null;
   try {
-    return JSON.parse(sessionStr);
+    return JSON.parse(raw) as UserSession;
   } catch {
     return null;
   }
 };
 
-export const saveSession = (token: string, user?: { email?: string; profileName?: string; styleArchetype?: string }) => {
+/** Called after a successful WYA login. user is the raw WYA user object. */
+export const saveSession = (token: string, user: Record<string, any>) => {
   localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ ...(user || {}), token }));
+  const session = mapUserSession(token, user);
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 };
 
 export const clearSession = () => {
@@ -32,15 +33,16 @@ export const clearSession = () => {
   localStorage.removeItem(SESSION_KEY);
 };
 
+/** Returns true if a non-expired JWT is stored. */
 export const isLoggedIn = (): boolean => {
   const token = getAuthToken();
   if (!token) return false;
   try {
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) return false;
-    const decoded = JSON.parse(atob(payloadBase64));
-    // JWT exp is in seconds, Date.now() is in milliseconds
-    return decoded.exp * 1000 > Date.now();
+    const payload = token.split('.')[1];
+    if (!payload) return false;
+    const { exp } = JSON.parse(atob(payload));
+    // WYA JWT exp is Unix seconds; Date.now() is ms
+    return typeof exp === 'number' && exp * 1000 > Date.now();
   } catch {
     return false;
   }
