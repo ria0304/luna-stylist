@@ -1,6 +1,6 @@
 /**
- * @license
- * SPDX-License-Identifier: Apache-2.0
+ * Luna — Auth Service
+ * Stores and retrieves WYA JWT tokens from localStorage
  */
 
 import { UserSession } from '../types';
@@ -22,9 +22,9 @@ export const getSavedSession = (): UserSession | null => {
   }
 };
 
-export const saveSession = (token: string, user: { email: string; profileName: string; styleArchetype: string }) => {
+export const saveSession = (token: string, user?: { email?: string; profileName?: string; styleArchetype?: string }) => {
   localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ ...user, token }));
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ ...(user || {}), token }));
 };
 
 export const clearSession = () => {
@@ -36,9 +36,11 @@ export const isLoggedIn = (): boolean => {
   const token = getAuthToken();
   if (!token) return false;
   try {
-    const payloadBase64 = token.split('.')[1] || token;
+    const payloadBase64 = token.split('.')[1];
+    if (!payloadBase64) return false;
     const decoded = JSON.parse(atob(payloadBase64));
-    return decoded.exp > Date.now();
+    // JWT exp is in seconds, Date.now() is in milliseconds
+    return decoded.exp * 1000 > Date.now();
   } catch {
     return false;
   }
