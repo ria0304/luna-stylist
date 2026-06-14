@@ -1,24 +1,27 @@
 /**
  * Luna — Chat View
- * Connects to real WYA API endpoints
+ * Routes natural language to WYA's real API endpoints.
  */
 
-import React, { useState, useEffect } from 'react';
-import { UserSession, ChatMessage, WardrobeItem } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  UserSession,
+  ChatMessage,
+  WardrobeItem,
+  WardrobeItemAPI,
+  mapWardrobeItem,
+  mapOutfit,
+  mapStyleDna,
+  mapGapAnalysis,
+  StyleDnaAPI,
+  GapAnalysisAPI,
+} from '../types';
 import ChatWindow from '../components/ChatWindow';
 import ChatInput from '../components/ChatInput';
 import { wyaApi } from '../services/api';
 import { classifyIntent } from '../services/intent';
 import { clearSession } from '../services/auth';
-import {
-  LogOut,
-  Settings,
-  Sparkles,
-  Grid,
-  X,
-  Shirt,
-  Info
-} from 'lucide-react';
+import { LogOut, Settings, Sparkles, Grid, X, Shirt } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ChatProps {
@@ -27,42 +30,39 @@ interface ChatProps {
 }
 
 export default function Chat({ session, onLogout }: ChatProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [debugMode, setDebugMode] = useState<boolean>(false);
-  const [closetOpen, setClosetOpen] = useState<boolean>(false);
-  const [closetItems, setClosetItems] = useState<WardrobeItem[]>([]);
-  const [loadingCloset, setLoadingCloset] = useState<boolean>(false);
+  const [messages, setMessages]       = useState<ChatMessage[]>([]);
+  const [debugMode, setDebugMode]     = useState(false);
+  const [closetOpen, setClosetOpen]   = useState(false);
+  const [allItems, setAllItems]       = useState<WardrobeItem[]>([]);
+  const [loadingCloset, setLoadingCloset] = useState(false);
 
-  // Welcome message on load
+  // Welcome message
   useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([
-        {
-          id: 'initial-welcome',
-          sender: 'luna',
-          text: `Hi ${session.profileName || 'there'} 👋 I'm Luna, your WYA stylist.\n\nI can see your wardrobe, style profile, and wardrobe gaps. Try asking:\n\n• "What should I wear to college tomorrow?"\n• "Show my black tops"\n• "What am I missing for winter?"\n• "Why am I a minimalist?"`,
-          timestamp: new Date().toISOString(),
-          intent: 'chat'
-        }
-      ]);
-    }
-  }, [session]);
+    setMessages([{
+      id: 'welcome',
+      sender: 'luna',
+      text: `Hi ${session.profileName} 👋 I'm Luna, your WYA stylist.\n\nI can see your wardrobe, style profile, and gaps. Try:\n\n• "Show me all my black tops"\n• "What should I wear to college tomorrow?"\n• "What am I missing for winter?"\n• "Why am I a minimalist?"`,
+      timestamp: new Date().toISOString(),
+      intent: 'chat',
+    }]);
+  }, [session.profileName]);
 
-  // Pre-load wardrobe for the closet drawer
+  // Pre-load entire wardrobe once — used for search filtering and outfit curation
   useEffect(() => {
-    const loadCloset = async () => {
+    (async () => {
       setLoadingCloset(true);
       try {
-        const items = await wyaApi.getWardrobe();
-        setClosetItems(Array.isArray(items) ? items : items.items || []);
+        const raw = await wyaApi.getWardrobe();
+        setAllItems((raw as WardrobeItemAPI[]).map(mapWardrobeItem));
       } catch (err) {
-        console.error('Failed to load wardrobe:', err);
+        console.error('Wardrobe load failed:', err);
       } finally {
         setLoadingCloset(false);
       }
-    };
-    loadCloset();
+    })();
   }, []);
+
+  // ── Message handler ─────────────────────────────────────────────────────────
 
   const handleSendMessage = async (text: string) => {
     const intent = classifyIntent(text);
@@ -73,68 +73,24 @@ export default function Chat({ session, onLogout }: ChatProps) {
       text,
       timestamp: new Date().toISOString(),
     };
-
     const loadMsg: ChatMessage = {
-      id: `l-loading-${Date.now()}`,
+      id: `loading-${Date.now()}`,
       sender: 'luna',
       text: '',
       timestamp: new Date().toISOString(),
       isLoading: true,
-      intent
+      intent,
     };
-
     setMessages(prev => [...prev, userMsg, loadMsg]);
 
     try {
-      let responseMsg: ChatMessage = {
-        id: `l-${Date.now()}`,
-        sender: 'luna',
-        timestamp: new Date().toISOString(),
-        intent,
-        text: ''
-      };
+      const responseMsg = await buildResponse(text, intent);
+      setMessages(prev => [...prev.filter(m => !m.isLoading), responseMsg]);
+    } catch (err: any) {
+      console.error('Luna error:', err);
 
-      // Route to correct WYA endpoint based on intent
-      if (intent === 'wardrobe-search') {
-        const items = await wyaApi.getWardrobe(text);
-        const results = Array.isArray(items) ? items : items.items || [];
-        responseMsg.text = results.length > 0
-          ? `Found ${results.length} item${results.length > 1 ? 's' : ''} in your wardrobe:`
-          : "I couldn't find any matching items in your wardrobe.";
-        responseMsg.wardrobeItems = results;
-
-      } else if (intent === 'outfit-help') {
-        const data = await wyaApi.getOutfits(text);
-        const outfits = Array.isArray(data) ? data : data.outfits || [];
-        responseMsg.text = outfits.length > 0
-          ? "Here are some outfits from your wardrobe:"
-          : "I couldn't generate outfits right now. Try adding more items to your wardrobe.";
-        responseMsg.outfits = outfits;
-
-      } else if (intent === 'gap-analysis') {
-        const data = await wyaApi.getGapAnalysis();
-        responseMsg.text = data.summary || "Here's what's missing from your wardrobe:";
-        responseMsg.gapAnalysis = data;
-
-      } else if (intent === 'style-explanation') {
-        const data = await wyaApi.getStyleDna();
-        responseMsg.text = `Your style archetype is **${data.archetype || data.primary_archetype}**. ${data.profile || data.description || ''}`;
-        responseMsg.styleDna = data;
-
-      } else {
-        // Fallback chat — use gap analysis or style DNA as context
-        responseMsg.text = "I'm Luna, your WYA stylist. Ask me about your outfits, wardrobe, style profile, or what you're missing.";
-      }
-
-      setMessages(prev => [
-        ...prev.filter(m => !m.isLoading),
-        responseMsg
-      ]);
-
-    } catch (error: any) {
-      console.error('Luna API error:', error);
-
-      if (error.message?.includes('401') || error.message?.includes('expired')) {
+      // Auto-logout on 401
+      if (err.message?.startsWith('401')) {
         handleDisconnect();
         return;
       }
@@ -142,13 +98,106 @@ export default function Chat({ session, onLogout }: ChatProps) {
       setMessages(prev => [
         ...prev.filter(m => !m.isLoading),
         {
-          id: `l-err-${Date.now()}`,
+          id: `err-${Date.now()}`,
           sender: 'luna',
-          text: `Something went wrong: ${error.message}. Please try again.`,
+          text: `Something went wrong: ${err.message}. Try again.`,
           timestamp: new Date().toISOString(),
-          intent: 'chat'
-        }
+          intent: 'chat',
+        },
       ]);
+    }
+  };
+
+  const buildResponse = async (text: string, intent: ChatMessage['intent']): Promise<ChatMessage> => {
+    const base = { id: `l-${Date.now()}`, sender: 'luna' as const, timestamp: new Date().toISOString(), intent };
+
+    switch (intent) {
+
+      // ── Wardrobe search — client-side filter on cached items ────────────────
+      case 'wardrobe-search': {
+        const query = text.toLowerCase();
+        const matched = allItems.filter(item =>
+          item.name.toLowerCase().includes(query) ||
+          item.category.toLowerCase().includes(query) ||
+          (item.color?.toLowerCase() ?? '').includes(query) ||
+          (item.fabric?.toLowerCase() ?? '').includes(query)
+        );
+        return {
+          ...base,
+          text: matched.length > 0
+            ? `Found ${matched.length} item${matched.length > 1 ? 's' : ''} in your wardrobe:`
+            : "I couldn't find matching items. Try a different colour or category.",
+          wardrobeItems: matched,
+        };
+      }
+
+      // ── Outfit help — saved outfits first, curate if empty ─────────────────
+      case 'outfit-help': {
+        const savedRaw = await wyaApi.getSavedOutfits();
+        const saved = (savedRaw as any[]).map(mapOutfit);
+
+        if (saved.length > 0) {
+          return {
+            ...base,
+            text: `Here are your saved outfits from WYA — pick one or ask me to narrow by occasion:`,
+            outfits: saved.slice(0, 6),
+          };
+        }
+
+        // Fall back to AI curation using wardrobe items
+        if (allItems.length === 0) {
+          return {
+            ...base,
+            text: "Your wardrobe is empty. Add some items in WYA and I'll suggest outfits.",
+          };
+        }
+
+        const curatedRaw = await wyaApi.curateOutfits(allItems);
+        const curated = ((curatedRaw as any).outfits || []).map(mapOutfit);
+
+        return {
+          ...base,
+          text: curated.length > 0
+            ? "Here are some outfit ideas from your wardrobe:"
+            : "I couldn't generate outfit suggestions right now. Try again in a moment.",
+          outfits: curated,
+        };
+      }
+
+      // ── Gap analysis ────────────────────────────────────────────────────────
+      case 'gap-analysis': {
+        const raw = await wyaApi.getGapAnalysis() as GapAnalysisAPI;
+        const data = mapGapAnalysis(raw);
+        return {
+          ...base,
+          text: data.summary ?? "Here's what your wardrobe is missing:",
+          gapAnalysis: data,
+        };
+      }
+
+      // ── Style DNA ───────────────────────────────────────────────────────────
+      case 'style-explanation': {
+        const raw = await wyaApi.getStyleDna(session.user_id) as StyleDnaAPI;
+        if (!raw.has_dna) {
+          return {
+            ...base,
+            text: "You haven't completed your Style DNA quiz in WYA yet. Head over to WYA and take the quiz first.",
+          };
+        }
+        const dna = mapStyleDna(raw);
+        return {
+          ...base,
+          text: `Your primary style is **${dna.primaryStyle}**${dna.comfortLevel ? `, comfort level: ${dna.comfortLevel}` : ''}. ${dna.summary ?? ''}`,
+          styleDna: dna,
+        };
+      }
+
+      // ── Fallback chat ───────────────────────────────────────────────────────
+      default:
+        return {
+          ...base,
+          text: "I'm Luna, your WYA stylist. Try asking:\n• \"Show my blue tops\"\n• \"What should I wear tomorrow?\"\n• \"What am I missing for summer?\"\n• \"Why am I a minimalist?\"",
+        };
     }
   };
 
@@ -175,7 +224,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
             </div>
             <p className="text-[10px] text-zinc-600 dark:text-zinc-400 font-sans tracking-tight flex items-center gap-1">
               <Sparkles size={10} className="text-pink-400/80" />
-              WYA Stylist • {session.profileName || 'your wardrobe'}
+              WYA Stylist • {session.profileName}
             </p>
           </div>
         </div>
@@ -203,7 +252,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
             <Grid size={13} />
             <span className="hidden sm:inline font-medium">Wardrobe</span>
             <span className="bg-zinc-200/50 dark:bg-zinc-800/50 px-1.5 py-0.5 rounded text-[10px] font-mono">
-              {closetItems.length}
+              {allItems.length}
             </span>
           </button>
 
@@ -248,7 +297,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
                     {session.profileName}&apos;s Wardrobe
                   </h3>
                   <p className="text-[10px] text-zinc-400 font-sans mt-0.5">
-                    {closetItems.length} items synced from WYA
+                    {allItems.length} items synced from WYA
                   </p>
                 </div>
                 <button
@@ -264,23 +313,29 @@ export default function Chat({ session, onLogout }: ChatProps) {
                   <div className="text-center py-12 text-xs text-zinc-400 italic">
                     Loading your wardrobe from WYA...
                   </div>
-                ) : closetItems.length === 0 ? (
+                ) : allItems.length === 0 ? (
                   <div className="text-center py-12 text-xs text-zinc-400 italic">
                     No wardrobe items found. Add items in WYA first.
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
-                    {closetItems.map((item: WardrobeItem) => (
+                    {allItems.map(item => (
                       <div
-                        key={item.id}
+                        key={item.item_id}
                         className="bg-white dark:bg-zinc-900 border border-zinc-150/70 dark:border-zinc-800 rounded-2xl overflow-hidden p-2 flex flex-col group"
                       >
                         <div className="relative aspect-[4/3] w-full rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-                          <img
-                            src={item.imageUrl || item.image_url}
-                            alt={item.name}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
+                          {item.image_url ? (
+                            <img
+                              src={item.image_url}
+                              alt={item.name}
+                              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center text-zinc-300 dark:text-zinc-700">
+                              <Shirt size={28} />
+                            </div>
+                          )}
                           <span className="absolute bottom-1.5 left-1.5 bg-black/60 backdrop-blur-md text-[8px] text-zinc-100 font-mono px-1 rounded uppercase">
                             {item.category}
                           </span>
@@ -289,11 +344,9 @@ export default function Chat({ session, onLogout }: ChatProps) {
                           <h5 className="font-sans font-medium text-[11px] text-zinc-800 dark:text-zinc-200 line-clamp-1">
                             {item.name}
                           </h5>
-                          <span className="text-[9px] text-zinc-400 block mt-0.5">
-                            {item.brand || ''}
-                          </span>
                           <div className="mt-2 pt-2 border-t border-zinc-50 dark:border-zinc-850 flex items-center justify-between text-[9px] text-zinc-400 font-mono">
-                            <span className="capitalize">{item.dominant_color || item.color}</span>
+                            <span className="capitalize">{item.color}</span>
+                            {item.fabric && <span className="capitalize">{item.fabric}</span>}
                           </div>
                         </div>
                       </div>
