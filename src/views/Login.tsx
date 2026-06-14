@@ -1,12 +1,12 @@
 /**
  * Luna — Login View
- * Authenticates against WYA's real JWT backend
+ * Authenticates against WYA's real JWT backend.
  */
 
 import React, { useState } from 'react';
 import { wyaApi } from '../services/api';
 import { saveSession } from '../services/auth';
-import { UserSession } from '../types';
+import { mapUserSession, UserSession } from '../types';
 import { Key, Mail, RefreshCw, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -15,10 +15,10 @@ interface LoginProps {
 }
 
 export default function Login({ onLoginSuccess }: LoginProps) {
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,12 +28,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setError(null);
 
     try {
-      const response = await wyaApi.login(email.trim(), password.trim());
-      saveSession(response.access_token, response.user);
-      onLoginSuccess({
-        ...response.user,
-        token: response.access_token
-      });
+      const { access_token, user } = await wyaApi.login(email.trim(), password.trim());
+      const session = mapUserSession(access_token, user);
+      saveSession(access_token, user);
+      onLoginSuccess(session);
     } catch (err: any) {
       setError(err.message || 'Could not connect to WYA. Check your credentials.');
     } finally {
@@ -43,7 +41,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-transparent p-4 relative overflow-hidden font-sans">
-      {/* Ambient glass glows */}
       <div className="absolute top-[-10%] left-[-10%] h-[50%] w-[50%] rounded-full bg-white/20 dark:bg-zinc-100/5 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] h-[40%] w-[40%] rounded-full bg-white/10 dark:bg-zinc-100/5 blur-[100px] pointer-events-none" />
 
@@ -53,7 +50,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="w-full max-w-md bg-white/75 dark:bg-zinc-950/50 border border-white/50 dark:border-zinc-800/60 rounded-3xl overflow-hidden p-8 shadow-2xl relative z-10 backdrop-blur-2xl"
       >
-        {/* Brand header */}
         <div className="text-center mb-8">
           <div className="h-12 w-12 bg-gradient-to-tr from-[#ebb3d4] via-[#c2caf5] to-[#9ae3d1] text-zinc-850 rounded-full flex items-center justify-center mx-auto mb-4 font-serif font-bold italic text-xl select-none shadow-md border border-white/50">
             l
@@ -66,7 +62,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           </p>
         </div>
 
-        {/* Login form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <AnimatePresence mode="wait">
             {error && (
@@ -81,7 +76,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             )}
           </AnimatePresence>
 
-          {/* Email input */}
           <div className="space-y-1.5">
             <label className="text-[10px] uppercase font-sans tracking-wider text-zinc-400 dark:text-zinc-500 block font-medium">
               WYA Email
@@ -92,14 +86,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 className="w-full bg-white/40 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-zinc-800 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-950 dark:text-zinc-100 focus:outline-none focus:border-purple-300 dark:focus:border-zinc-700 transition-colors font-sans"
               />
             </div>
           </div>
 
-          {/* Password input */}
           <div className="space-y-1.5">
             <label className="text-[10px] uppercase font-sans tracking-wider text-zinc-400 dark:text-zinc-500 block font-medium">
               Password
@@ -110,14 +103,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 type="password"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 className="w-full bg-white/40 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-zinc-800 rounded-xl py-3 pl-11 pr-4 text-sm text-zinc-950 dark:text-zinc-100 focus:outline-none focus:border-purple-300 dark:focus:border-zinc-700 transition-colors font-sans font-mono"
               />
             </div>
           </div>
 
-          {/* Submit button */}
           <motion.button
             whileTap={{ scale: 0.98 }}
             type="submit"
