@@ -43,7 +43,7 @@ jobs:
     - name: Build
       run: npm run build
       env:
-        VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        VITE_WYA_API_URL: ${{ secrets.VITE_WYA_API_URL }}
     
     - name: Deploy to S3
       if: github.ref == 'refs/heads/main'
