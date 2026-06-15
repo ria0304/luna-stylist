@@ -37,6 +37,47 @@ Chat reply
 
 ---
 
+## Project Structure
+
+```
+luna-stylist/
+├── index.html
+├── vite.config.ts
+├── tsconfig.json
+├── package.json
+├── .env.example
+│
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          # CI/CD → S3 + CloudFront
+│
+└── src/
+    ├── main.tsx                # App entry point
+    ├── index.css               # Global styles
+    ├── App.tsx                 # Root component, auth gate
+    │
+    ├── views/
+    │   ├── Login.tsx           # WYA login screen
+    │   └── Chat.tsx            # Main chat interface + all intent routing
+    │
+    ├── components/
+    │   ├── ChatWindow.tsx      # Message list renderer
+    │   ├── ChatInput.tsx       # Text input + send button
+    │   ├── IntentBadge.tsx     # Debug overlay showing classified intent
+    │   └── OutfitCard.tsx      # Outfit result card
+    │
+    ├── services/
+    │   ├── api.ts              # All WYA API calls (wardrobe, outfits, style, gaps)
+    │   ├── auth.ts             # JWT token storage and session helpers
+    │   ├── intent.ts           # Keyword-based intent classifier
+    │   └── smartReply.ts       # Fallback replies for general chat messages
+    │
+    └── types/
+        └── index.ts            # Shared TypeScript types + API response mappers
+```
+
+---
+
 ## Tech Stack
 
 - React + TypeScript
@@ -57,6 +98,18 @@ npm run dev
 ```
 
 You need a WYA account to use Luna. No standalone login — Luna authenticates directly against your WYA wardrobe.
+
+---
+
+## Deployment
+
+Pushes to `main` automatically deploy via GitHub Actions:
+
+1. Builds the React app
+2. Syncs to S3 with correct cache headers
+3. Invalidates CloudFront on `index.html`
+
+GitHub Secrets required: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ACCOUNT_ID`, `VITE_WYA_API_URL`, `LUNA_CLOUDFRONT_DISTRIBUTION_ID`
 
 ---
 
