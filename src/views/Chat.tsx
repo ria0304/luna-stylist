@@ -20,6 +20,7 @@ import ChatWindow from '../components/ChatWindow';
 import ChatInput from '../components/ChatInput';
 import { wyaApi } from '../services/api';
 import { classifyIntent } from '../services/intent';
+import { buildSmartReply } from '../services/smartReply';
 import { clearSession } from '../services/auth';
 import { LogOut, Settings, Sparkles, Grid, X, Shirt } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -192,12 +193,9 @@ export default function Chat({ session, onLogout }: ChatProps) {
         };
       }
 
-      // ── Fallback chat ───────────────────────────────────────────────────────
+      // ── Smart reply fallback ────────────────────────────────────────────────
       default:
-        return {
-          ...base,
-          text: "I'm Luna, your WYA stylist. Try asking:\n• \"Show my blue tops\"\n• \"What should I wear tomorrow?\"\n• \"What am I missing for summer?\"\n• \"Why am I a minimalist?\"",
-        };
+        return buildSmartReply(text, allItems, base);
     }
   };
 
