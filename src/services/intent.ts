@@ -12,7 +12,7 @@ import { LunaIntent } from '../types';
  *  2. gap-analysis       — "missing", "need", "what am i lacking", "buy"
  *  3. outfit-help        — "wear", "outfit", "what should i", "look for", "dressed"
  *  4. wardrobe-search    — "show", "search", "find", "all my", specific garments
- *  5. chat               — fallback
+ *  5. chat               — fallback (now handled intelligently)
  */
 
 interface IntentRule {
@@ -22,7 +22,7 @@ interface IntentRule {
 }
 
 const RULES: IntentRule[] = [
-  // 1. Style explanation — check BEFORE gap/outfit so "my aesthetic" doesn't get lost
+  // 1. Style explanation
   {
     intent: 'style-explanation',
     required: [
@@ -36,15 +36,23 @@ const RULES: IntentRule[] = [
       'what is my style',
       "what's my style",
       'explain my style',
+      'describe my style',
+      'my fashion sense',
       'minimalist',
       'avant-garde',
       'streetwear',
       'boho',
       'classic style',
+      'cottagecore',
+      'dark academia',
+      'old money',
+      'y2k',
+      'my vibe',
+      'fashion personality',
     ],
   },
 
-  // 2. Gap analysis — check BEFORE outfit-help to catch "i need a black dress"
+  // 2. Gap analysis
   {
     intent: 'gap-analysis',
     required: [
@@ -60,10 +68,18 @@ const RULES: IntentRule[] = [
       'what to add',
       'lacking',
       'wardrobe needs',
+      'should i get',
+      'should i buy',
+      'add to my wardrobe',
+      'invest in',
+      'need more',
+      'upgrade my',
+      'complete my wardrobe',
+      'capsule wardrobe',
     ],
   },
 
-  // 3. Outfit help — intentional "what to wear" phrasing
+  // 3. Outfit help
   {
     intent: 'outfit-help',
     required: [
@@ -81,10 +97,30 @@ const RULES: IntentRule[] = [
       'style me',
       'put together',
       'put an outfit',
+      'wear to',
+      'wear for',
+      'wear tomorrow',
+      'wear today',
+      'wear tonight',
+      'wear this weekend',
+      'college outfit',
+      'work outfit',
+      'party outfit',
+      'casual outfit',
+      'date outfit',
+      'interview outfit',
+      'wedding outfit',
+      'formal outfit',
+      'how should i dress',
+      'help me get dressed',
+      'what goes with',
+      'pair with',
+      'match with',
+      'combine with',
     ],
   },
 
-  // 4. Wardrobe search — show / search / find specific items
+  // 4. Wardrobe search
   {
     intent: 'wardrobe-search',
     required: [
@@ -102,6 +138,16 @@ const RULES: IntentRule[] = [
       "what's in my wardrobe",
       'in my wardrobe',
       'in my closet',
+      'my tops',
+      'my dresses',
+      'my jeans',
+      'my pants',
+      'my skirts',
+      'my jackets',
+      'my shoes',
+      'my bags',
+      'how many',
+      'count my',
     ],
   },
 ];
@@ -110,9 +156,7 @@ export function classifyIntent(message: string): LunaIntent {
   const norm = message.toLowerCase();
 
   for (const rule of RULES) {
-    // Check veto words first
     if (rule.veto && rule.veto.some(v => norm.includes(v))) continue;
-    // Check at least one required keyword
     if (rule.required.some(kw => norm.includes(kw))) return rule.intent;
   }
 
@@ -149,8 +193,8 @@ export const getIntentMetadata = (intent: LunaIntent) => {
       };
     default:
       return {
-        label: 'General Chat',
-        route: '—',
+        label: 'Smart Reply',
+        route: 'wardrobe context + rule engine',
         color: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-800/30',
       };
   }
