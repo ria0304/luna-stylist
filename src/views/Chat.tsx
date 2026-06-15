@@ -1,6 +1,6 @@
 /**
  * Luna — Chat View
- * Routes natural language to WYA's real API endpoints with robust error handling.
+ * Routes natural language directly to WYA's real orchestration API endpoints.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -13,8 +13,6 @@ import {
   mapOutfit,
   mapStyleDna,
   mapGapAnalysis,
-  StyleDnaAPI,
-  GapAnalysisAPI,
 } from '../types';
 import ChatWindow from '../components/ChatWindow';
 import ChatInput from '../components/ChatInput';
@@ -28,6 +26,13 @@ import { motion, AnimatePresence } from 'motion/react';
 interface ChatProps {
   session: UserSession;
   onLogout: () => void;
+}
+
+interface LunaOrchestratorPayload {
+  text: string;
+  outfits?: any[];
+  gapAnalysis?: any;
+  styleDna?: any;
 }
 
 export default function Chat({ session, onLogout }: ChatProps) {
@@ -129,16 +134,18 @@ export default function Chat({ session, onLogout }: ChatProps) {
       }
 
       case 'outfit-help': {
-        // Try to fetch curated suggestions based on wardrobe state
         try {
-          const curatedRaw = await wyaApi.curateOutfits(allItems);
-          const curated = ((curatedRaw as any).outfits || []).map(mapOutfit);
+          // Route through unified orchestration endpoint
+          const response = await wyaApi.post<LunaOrchestratorPayload>('/api/luna/chat', {
+            message: text,
+            intent: 'outfit-help'
+          });
+
+          const curated = (response.outfits || []).map(mapOutfit);
 
           return {
             ...base,
-            text: curated.length > 0
-              ? `I've put together some looks based on what you have:`
-              : `I need a few more items in your wardrobe to start building full outfits!`,
+            text: response.text || `I've put together some looks based on what you have:`,
             outfits: curated,
           };
         } catch (e) {
@@ -147,33 +154,38 @@ export default function Chat({ session, onLogout }: ChatProps) {
       }
 
       case 'gap-analysis': {
-        const raw = await wyaApi.getGapAnalysis() as GapAnalysisAPI;
-        const data = mapGapAnalysis(raw);
+        // Fix 404: Pass parameters directly through the orchestrator pipeline
+        const response = await wyaApi.post<LunaOrchestratorPayload>('/api/luna/chat', {
+          message: text,
+          intent: 'gap-analysis'
+        });
+
+        const data = mapGapAnalysis(response.gapAnalysis);
         return {
           ...base,
-          text: data.summary || `Here's a breakdown of what's missing from your collection:`,
+          text: response.text || data.summary || `Here's a breakdown of what's missing from your collection:`,
           gapAnalysis: data,
         };
       }
 
       case 'style-explanation': {
-        const raw = await wyaApi.getStyleDna(session.user_id) as StyleDnaAPI;
-        if (!raw.has_dna) {
-          return {
-            ...base,
-            text: `It looks like we haven't analyzed your Style DNA yet. Head over to the main WYA app to take the quiz!`,
-          };
-        }
-        const dna = mapStyleDna(raw);
+        // Fix 404: Pipe raw textual prompt vectors directly to the ML analyzer pipeline
+        const response = await wyaApi.post<LunaOrchestratorPayload>('/api/luna/chat', {
+          message: text,
+          intent: 'style-explanation'
+        });
+
+        // Use the mapped output structure if returned, otherwise degrade gracefully to text response
+        const dna = response.styleDna ? mapStyleDna(response.styleDna) : null;
+
         return {
           ...base,
-          text: `Based on your wardrobe, your aesthetic is **${dna.primaryStyle}**. ${dna.summary || ''}`,
-          styleDna: dna,
+          text: response.text || `Based on your wardrobe, your aesthetic reflects clean profiles.`,
+          styleDna: dna || undefined,
         };
       }
 
       default:
-        // Fallback to the SmartReply engine for general chit-chat
         return buildSmartReply(text, allItems, base);
     }
   };
@@ -185,11 +197,65 @@ export default function Chat({ session, onLogout }: ChatProps) {
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-transparent font-sans relative overflow-hidden">
-      {/* Existing Header & UI Logic Remains Same */}
+      
+      {/* Header Container */}
       <header className="border-b border-white/25 dark:border-zinc-900/40 bg-white/35 dark:bg-zinc-950/30 backdrop-blur-xl px-6 py-4 flex items-center justify-between shrink-0 relative z-10">
-         {/* ... (Your existing header JSX) ... */}
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 bg-gradient-to-tr from-[#ebb3d4] via-[#c2caf5] to-[#9ae3d1] rounded-full flex items-center justify-center shadow-xs border border-white/40">
+            <span className="font-serif italic font-bold text-base text-zinc-850">l</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="font-serif italic font-bold text-base text-zinc-950 dark:text-zinc-50 tracking-wide">
+                luna
+              </h1>
+              <span className="h-1.5 w-1.5 rounded-full bg-pink-400 animate-pulse" />
+            </div>
+            <p className="text-[10px] text-zinc-600 dark:text-zinc-400 font-sans tracking-tight flex items-center gap-1">
+              <Sparkles size={10} className="text-pink-400/80" />
+              WYA Stylist • {session.profileName}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setDebugMode(!debugMode)}
+            className={`px-2.5 py-1.5 rounded-lg border text-xs font-sans font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+              debugMode
+                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 border-zinc-800'
+                : 'bg-white/45 text-zinc-600 dark:bg-zinc-900/45 dark:text-zinc-400 border-white/35 hover:bg-white/65'
+            }`}
+          >
+            <Settings size={12} className={debugMode ? 'animate-spin-slow' : ''} />
+            <span className="hidden sm:inline">Diagnostics</span>
+            <span className="text-[9px] px-1 bg-zinc-550/10 dark:bg-white/10 rounded">
+              {debugMode ? 'ON' : 'OFF'}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setClosetOpen(true)}
+            className="p-1.5 bg-white/45 dark:bg-zinc-900/45 border border-white/35 dark:border-zinc-800/40 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 font-sans text-xs flex items-center gap-1.5 cursor-pointer backdrop-blur-sm hover:bg-white/65"
+          >
+            <Grid size={13} />
+            <span className="hidden sm:inline font-medium">Wardrobe</span>
+            <span className="bg-zinc-200/50 dark:bg-zinc-800/50 px-1.5 py-0.5 rounded text-[10px] font-mono">
+              {allItems.length}
+            </span>
+          </button>
+
+          <button
+            onClick={handleDisconnect}
+            className="p-1.5 bg-white/45 dark:bg-zinc-900/45 hover:bg-red-50/50 text-zinc-500 hover:text-red-600 border border-white/30 rounded-lg transition-colors cursor-pointer backdrop-blur-sm"
+            title="Sign out"
+          >
+            <LogOut size={13} />
+          </button>
+        </div>
       </header>
 
+      {/* Main Chat Interface Components */}
       <ChatWindow messages={messages} debugMode={debugMode} />
       
       <ChatInput
@@ -197,7 +263,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
         disabled={messages.length > 0 && messages[messages.length - 1].isLoading === true}
       />
 
-      {/* Wardrobe Drawer */}
+      {/* Side Wardrobe Sliding Drawer Panel */}
       <AnimatePresence>
         {closetOpen && (
           <>
@@ -212,9 +278,73 @@ export default function Chat({ session, onLogout }: ChatProps) {
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
               className="absolute top-0 right-0 h-full w-full sm:w-[440px] bg-white dark:bg-zinc-950 shadow-2xl z-40 border-l border-zinc-100 dark:border-zinc-900 flex flex-col"
             >
-              {/* ... (Your existing wardrobe drawer content) ... */}
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-900/80 flex items-center justify-between shrink-0">
+                <div>
+                  <h3 className="font-serif italic font-semibold text-md text-zinc-900 dark:text-zinc-50 flex items-center gap-1.5">
+                    <Shirt className="text-pink-400" size={16} />
+                    {session.profileName}&apos;s Wardrobe
+                  </h3>
+                  <p className="text-[10px] text-zinc-400 font-sans mt-0.5">
+                    {allItems.length} items synced from WYA
+                  </p>
+                </div>
+                <button
+                  onClick={() => setClosetOpen(false)}
+                  className="p-1.5 text-zinc-400 hover:text-zinc-900 bg-zinc-50 dark:bg-zinc-900 rounded-xl cursor-pointer"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {loadingCloset ? (
+                  <div className="text-center py-12 text-xs text-zinc-400 italic">
+                    Loading your wardrobe from WYA...
+                  </div>
+                ) : allItems.length === 0 ? (
+                  <div className="text-center py-12 text-xs text-zinc-400 italic">
+                    No wardrobe items found. Add items in WYA first.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {allItems.map(item => (
+                      <div
+                        key={item.item_id}
+                        className="bg-white dark:bg-zinc-900 border border-zinc-150/70 dark:border-zinc-800 rounded-2xl overflow-hidden p-2 flex flex-col group"
+                      >
+                        <div className="relative aspect-[4/3] w-full rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+                          {item.image_url ? (
+                            <img
+                              src={item.image_url}
+                              alt={item.name}
+                              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center text-zinc-300 dark:text-zinc-700">
+                              <Shirt size={28} />
+                            </div>
+                          )}
+                          <span className="absolute bottom-1.5 left-1.5 bg-black/60 backdrop-blur-md text-[8px] text-zinc-100 font-mono px-1 rounded uppercase">
+                            {item.category}
+                          </span>
+                        </div>
+                        <div className="mt-2.5 flex-1 flex flex-col justify-between">
+                          <h5 className="font-sans font-medium text-[11px] text-zinc-800 dark:text-zinc-200 line-clamp-1">
+                            {item.name}
+                          </h5>
+                          <div className="mt-2 pt-2 border-t border-zinc-50 dark:border-zinc-850 flex items-center justify-between text-[9px] text-zinc-400 font-mono">
+                            <span className="capitalize">{item.color}</span>
+                            {item.fabric && <span className="capitalize">{item.fabric}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </motion.div>
           </>
         )}
