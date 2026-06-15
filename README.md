@@ -1,25 +1,27 @@
 # Luna — Conversational AI Stylist
 
-Luna is a conversational wardrobe assistant that lets you talk to your closet in plain English.
+Luna lets you talk to your wardrobe in plain English.
 
-Built as a standalone chat interface that connects to [WYA](https://github.com/ria0304/WYA-Whats-Your-Aesthetic)'s fashion intelligence API — Luna knows what you own, what your style is, and what you're missing before you say a word.
+It's a standalone chat interface built on top of [WYA](https://github.com/ria0304/WYA-Whats-Your-Aesthetic)'s fashion intelligence API — so before you say a word, Luna already knows what you own, what your style is, and what you're missing.
+
+**Live →** http://luna-stylist.s3-website.ap-south-1.amazonaws.com/
 
 ---
 
-## What Luna Does
+## What You Can Ask
 
-- **Outfit help** — "What should I wear to college tomorrow?" → real outfits from your actual wardrobe
-- **Wardrobe search** — "Show all my black tops" → instant natural language queries
-- **Gap analysis** — "What am I missing for winter?" → powered by WYA's gap analyzer
-- **Style explanation** — "Why am I a minimalist?" → your Style DNA explained in plain English
+- *"What should I wear to college tomorrow?"* → real outfits from your actual wardrobe
+- *"Show all my black tops"* → natural language wardrobe search
+- *"What am I missing for winter?"* → gap analysis powered by WYA
+- *"Why am I a minimalist?"* → your Style DNA explained in plain English
 
 ---
 
 ## How It Works
 
-Luna is a React frontend with an intent classification layer. It authenticates against WYA's backend API using JWT tokens and routes natural language queries to the correct wardrobe endpoint.
+Luna is a React frontend with an intent classification layer. It authenticates against WYA's backend using JWT tokens and routes your messages to the right wardrobe endpoint.
 
-No wardrobe data lives in Luna. WYA is the brain. Luna is the interface.
+No wardrobe data lives in Luna. WYA is the brain. Luna is the mouth.
 
 ```
 User message
@@ -38,8 +40,23 @@ Chat reply
 ## Tech Stack
 
 - React + TypeScript
+- Tailwind CSS
 - WYA REST API (wardrobe, style, AI endpoints)
 - Intent classifier (natural language → API route)
+- Hosted on AWS S3 + CloudFront
+
+---
+
+## Setup
+
+```bash
+npm install
+cp .env.example .env
+# Set VITE_WYA_API_URL to your WYA backend URL
+npm run dev
+```
+
+You need a WYA account to use Luna. No standalone login — Luna authenticates directly against your WYA wardrobe.
 
 ---
 
