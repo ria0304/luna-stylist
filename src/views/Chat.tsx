@@ -42,7 +42,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
     setMessages([{
       id: 'welcome',
       sender: 'luna',
-      text: `Hi ${session.profileName} 👋 I'm Luna, your WYA stylist.\n\nI can see your wardrobe, style profile, and gaps. Try:\n\n• "Show me all my black tops"\n• "What should I wear to college tomorrow?"\n• "What am I missing for winter?"\n• "Why am I a minimalist?"`,
+      text: `Hey ${session.profileName} 👋 I'm Luna — think of me as your personal stylist who actually knows your wardrobe.\n\nAsk me anything:\n\n• "Show me all my black tops"\n• "What should I wear to college tomorrow?"\n• "What am I missing for winter?"\n• "Why am I a minimalist?"`,
       timestamp: new Date().toISOString(),
       intent: 'chat',
     }]);
@@ -101,7 +101,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
         {
           id: `err-${Date.now()}`,
           sender: 'luna',
-          text: `Something went wrong: ${err.message}. Try again.`,
+          text: `Something went wrong — give it another try in a second.`,
           timestamp: new Date().toISOString(),
           intent: 'chat',
         },
@@ -126,8 +126,8 @@ export default function Chat({ session, onLogout }: ChatProps) {
         return {
           ...base,
           text: matched.length > 0
-            ? `Found ${matched.length} item${matched.length > 1 ? 's' : ''} in your wardrobe:`
-            : "I couldn't find matching items. Try a different colour or category.",
+            ? `Found ${matched.length} thing${matched.length > 1 ? 's' : ''} that match:`
+            : `Nothing came up for that — try a different colour or type of clothing.`,
           wardrobeItems: matched,
         };
       }
@@ -140,7 +140,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
         if (saved.length > 0) {
           return {
             ...base,
-            text: `Here are your saved outfits from WYA — pick one or ask me to narrow by occasion:`,
+            text: `Here are some outfits you've saved — pick one or tell me the occasion and I'll narrow it down:`,
             outfits: saved.slice(0, 6),
           };
         }
@@ -149,7 +149,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
         if (allItems.length === 0) {
           return {
             ...base,
-            text: "Your wardrobe is empty. Add some items in WYA and I'll suggest outfits.",
+            text: `Your wardrobe is empty right now. Add some pieces in WYA and I'll start putting outfits together.`,
           };
         }
 
@@ -159,8 +159,8 @@ export default function Chat({ session, onLogout }: ChatProps) {
         return {
           ...base,
           text: curated.length > 0
-            ? "Here are some outfit ideas from your wardrobe:"
-            : "I couldn't generate outfit suggestions right now. Try again in a moment.",
+            ? `Here are some outfit ideas pulled from your wardrobe:`
+            : `Couldn't pull outfits together right now — try again in a moment.`,
           outfits: curated,
         };
       }
@@ -171,7 +171,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
         const data = mapGapAnalysis(raw);
         return {
           ...base,
-          text: data.summary ?? "Here's what your wardrobe is missing:",
+          text: data.summary ?? `Here's what your wardrobe could use more of:`,
           gapAnalysis: data,
         };
       }
@@ -182,13 +182,13 @@ export default function Chat({ session, onLogout }: ChatProps) {
         if (!raw.has_dna) {
           return {
             ...base,
-            text: "You haven't completed your Style DNA quiz in WYA yet. Head over to WYA and take the quiz first.",
+            text: `You haven't done the Style DNA quiz in WYA yet — go do that first and then come back. It only takes a few minutes.`,
           };
         }
         const dna = mapStyleDna(raw);
         return {
           ...base,
-          text: `Your primary style is **${dna.primaryStyle}**${dna.comfortLevel ? `, comfort level: ${dna.comfortLevel}` : ''}. ${dna.summary ?? ''}`,
+          text: `Your style is **${dna.primaryStyle}**${dna.comfortLevel ? ` and your comfort level is ${dna.comfortLevel}` : ''}. ${dna.summary ?? ''}`,
           styleDna: dna,
         };
       }
