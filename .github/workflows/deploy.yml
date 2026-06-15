@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   build-and-deploy:
@@ -12,21 +13,43 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history
+    
+    - name: Debug - List files
+      run: |
+        echo "Current directory: $(pwd)"
+        echo "Files in root:"
+        ls -la
+        echo "Checking for package-lock.json:"
+        if [ -f package-lock.json ]; then
+          echo "✅ package-lock.json found!"
+          head -5 package-lock.json
+        else
+          echo "❌ package-lock.json NOT found"
+          find . -name "package-lock.json"
+        fi
     
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
         cache: 'npm'
+        cache-dependency-path: './package-lock.json'  # Explicitly specify path
+    
+    - name: Clear npm cache (fix for cache issues)
+      run: |
+        npm cache clean --force
+        rm -rf node_modules
     
     - name: Install dependencies
       run: npm ci
+      continue-on-error: false
     
     - name: Build
       run: npm run build
       env:
         VITE_API_URL: ${{ secrets.VITE_API_URL }}
-        # Add other env vars from your .env.example
     
     - name: Deploy to S3
       uses: aws-actions/configure-aws-credentials@v4
@@ -40,5 +63,6 @@ jobs:
         aws s3 sync dist/ s3://luna-stylist --delete
     
     - name: Invalidate CloudFront (if using)
+      if: ${{ secrets.CLOUDFRONT_DIST_ID != '' }}
       run: |
         aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DIST_ID }} --paths "/*"
