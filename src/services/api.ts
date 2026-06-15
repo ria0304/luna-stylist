@@ -27,6 +27,25 @@ async function wyaRequest<T = unknown>(endpoint: string, options: RequestInit = 
 }
 
 export const wyaApi = {
+  // ── Generic HTTP Utility Methods ───────────────────────────────────────────
+  /**
+   * Generic GET request utility.
+   */
+  async get<T = unknown>(endpoint: string): Promise<T> {
+    return wyaRequest<T>(endpoint, { method: 'GET' });
+  },
+
+  /**
+   * Generic POST request utility.
+   */
+  async post<T = unknown>(endpoint: string, data: unknown): Promise<T> {
+    return wyaRequest<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // ── Feature Specific Methods ───────────────────────────────────────────────
   /**
    * Authenticate with WYA credentials.
    * Returns { access_token, user: { user_id, email, full_name, gender, ... } }
