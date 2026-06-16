@@ -40,7 +40,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
     setMessages([{
       id: 'welcome',
       sender: 'luna',
-      text: `Hey ${session.profileName} 👋 I'm Luna — think of me as your personal stylist who actually knows your wardrobe.\n\nAsk me anything:\n\n• "Show me all my black tops"\n• "What should I wear to college tomorrow?"\n• "What am I missing for winter?"\n• "Why am I a minimalist?"`,
+      text: `Hey ${session.profileName} 👋 I'm Luna — think of me as your personal stylist who actually knows your wardrobe.\n\nAsk me anything:\n\n• "Show me all my black tops"\n• "What should I wear to college tomorrow?"\n• "What am I missing for winter?"\n• "Why am I a minimalist?"\n• "Show me my Aesthetic Aura"`,
       timestamp: new Date().toISOString(),
       intent: 'chat',
     }]);
@@ -107,9 +107,145 @@ export default function Chat({ session, onLogout }: ChatProps) {
   };
 
   const buildResponse = async (text: string, intent: ChatMessage['intent']): Promise<ChatMessage> => {
-    const base = { id: `l-${Date.now()}`, sender: 'luna' as const, timestamp: new Date().toISOString(), intent };
+    const base = { 
+      id: `l-${Date.now()}`, 
+      sender: 'luna' as const, 
+      timestamp: new Date().toISOString(), 
+      intent 
+    };
 
     switch (intent) {
+      // ── FEATURE 1: Outfit Suggestions ──────────────────────────────────────
+      case 'outfit-help': {
+        try {
+          // Get weather, style DNA, and outfit match simultaneously
+          const [weather, dna, outfits] = await Promise.all([
+            wyaApi.getWeather().catch(() => ({ condition: 'unknown', temperature: 0 })),
+            wyaApi.getStyleDna(session.userId).catch(() => ({ has_dna: false })),
+            wyaApi.getOutfitMatch(extractOccasion(text)).catch(() => ({ outfits: [] }))
+          ]);
+
+          // Check if we have outfit data
+          if (!outfits.outfits || outfits.outfits.length === 0) {
+            return {
+              ...base,
+              text: `I couldn't create any outfits from your current wardrobe. Try uploading more items first! 🛍️`
+            };
+          }
+
+          // Build a personalized message
+          let responseText = '';
+          const weatherText = weather.condition && weather.condition !== 'unknown' 
+            ? `the ${weather.condition} weather (${weather.temperature || ''}°C)` 
+            : 'your current weather';
+            
+          if (dna.has_dna && dna.styles) {
+            responseText = `Based on your **${dna.styles}** style and ${weatherText}, here are some looks I curated for you:`;
+          } else {
+            responseText = `Based on ${weatherText}, here are some outfits from your wardrobe:`;
+          }
+
+          return {
+            ...base,
+            text: responseText,
+            outfits: outfits.outfits.map((o: any) => ({
+              ...o,
+              reasoning: o.reasoning || `This look combines your items perfectly.`
+            })),
+          };
+        } catch (error) {
+          console.error('Outfit help error:', error);
+          return {
+            ...base,
+            text: `I'm having trouble styling you right now. Make sure you have items in your wardrobe and try again! 👗`
+          };
+        }
+      }
+
+      // ── FEATURE 2: Style DNA Explanation ──────────────────────────────────
+      case 'style-explanation': {
+        try {
+          const dna = await wyaApi.getStyleDna(session.userId);
+          
+          if (!dna.has_dna || !dna.styles) {
+            return {
+              ...base,
+              text: `You haven't completed your Style DNA quiz yet! 🧬\n\nHead to WYA and take the quiz to discover your aesthetic. It only takes 2 minutes!`
+            };
+          }
+          
+          // Build detailed explanation
+          let explanation = `**Your Style DNA: ${dna.styles}**\n\n`;
+          explanation += `🖌️ **Color Preference:** ${dna.color_preference || 'Varied'}\n`;
+          explanation += `👗 **Comfort Level:** ${dna.comfort_level || 'Moderate'}\n`;
+          if (dna.silhouette) {
+            explanation += `✨ **Silhouette:** ${dna.silhouette}\n\n`;
+          }
+          explanation += dna.summary || `Your style is ${dna.styles} — you prefer ${dna.color_preference?.toLowerCase() || 'vibrant'} colors and ${dna.comfort_level?.toLowerCase() || 'comfortable'} fits.`;
+          
+          return {
+            ...base,
+            text: explanation,
+            styleDna: dna,
+          };
+        } catch (error) {
+          console.error('Style DNA error:', error);
+          return {
+            ...base,
+            text: `I'm having trouble reading your Style DNA right now. Make sure you've completed the quiz in WYA! 🧬`
+          };
+        }
+      }
+
+      // ── FEATURE 3: Aesthetic Aura ─────────────────────────────────────────
+      case 'aesthetic-aura': {
+        try {
+          const aura = await wyaApi.getAestheticAura();
+          
+          if (!aura || !aura.styles || aura.styles.length === 0) {
+            return {
+              ...base,
+              text: `You don't have enough wardrobe data to generate your Aesthetic Aura yet. Upload more items to WYA and try again! ✨`
+            };
+          }
+          
+          // Build aura display
+          let auraText = `✨ **Your Aesthetic Aura** ✨\n\n`;
+          auraText += `🎨 **${aura.aesthetic_type || 'Unique'} Vibe**\n\n`;
+          auraText += `📊 **Style Breakdown:**\n`;
+          
+          aura.styles.forEach((style: any) => {
+            const bar = '█'.repeat(Math.floor(style.percentage / 10));
+            auraText += `  • ${style.name}: ${bar} ${style.percentage}%\n`;
+          });
+          
+          if (aura.dominantColors && aura.dominantColors.length > 0) {
+            auraText += `\n🎨 **Dominant Colors:**\n`;
+            aura.dominantColors.forEach((color: any) => {
+              const bar = '█'.repeat(Math.floor(color.percentage / 10));
+              auraText += `  • ${color.color}: ${bar} ${color.percentage}%\n`;
+            });
+          }
+          
+          if (aura.summary) {
+            auraText += `\n${aura.summary}`;
+          }
+          
+          return {
+            ...base,
+            text: auraText,
+            styleDna: aura,
+          };
+        } catch (error) {
+          console.error('Aesthetic Aura error:', error);
+          return {
+            ...base,
+            text: `I'm having trouble generating your Aesthetic Aura right now. Make sure you have enough wardrobe data and try again! ✨`
+          };
+        }
+      }
+
+      // ── Wardrobe Search ─────────────────────────────────────────────────────
       case 'wardrobe-search': {
         const query = text.toLowerCase();
         const matched = allItems.filter(item =>
@@ -144,51 +280,12 @@ export default function Chat({ session, onLogout }: ChatProps) {
         };
       }
 
-      case 'outfit-help': {
-        try {
-          // Get wardrobe items
-          const rawItems = await wyaApi.getWardrobe();
-          const items = (rawItems as WardrobeItemAPI[]).map(mapWardrobeItem);
-          
-          if (items.length === 0) {
-            return {
-              ...base,
-              text: "Your wardrobe is empty! Head to WYA and upload some clothes first. 🛍️"
-            };
-          }
-          
-          // Call the real outfit matcher
-          const response = await wyaApi.curateOutfits(items);
-          const curated = (response.outfits || []).map(mapOutfit);
-          
-          if (curated.length === 0) {
-            return {
-              ...base,
-              text: "I couldn't create any outfit combinations from your current wardrobe. Try adding more variety! 👗"
-            };
-          }
-          
-          return {
-            ...base,
-            text: `I've put together ${curated.length} look${curated.length > 1 ? 's' : ''} based on what you have:`,
-            outfits: curated,
-          };
-        } catch (e) {
-          console.error('Outfit generation error:', e);
-          return { 
-            ...base, 
-            text: "I'm having trouble styling you right now. Make sure you have items in your wardrobe and try again!"
-          };
-        }
-      }
-
+      // ── Gap Analysis ────────────────────────────────────────────────────────
       case 'gap-analysis': {
         try {
-          // Call WYA's real gap analysis endpoint
-          const response = await wyaApi.getGapAnalysis();
-          const data = mapGapAnalysis(response);
+          const gaps = await wyaApi.getGapAnalysis();
+          const data = gaps as any;
           
-          // Check if there are actual gaps
           if (!data.gaps || data.gaps.length === 0) {
             return {
               ...base,
@@ -196,52 +293,63 @@ export default function Chat({ session, onLogout }: ChatProps) {
             };
           }
           
+          let gapText = `📊 **Wardrobe Gap Analysis**\n\n`;
+          gapText += `Your primary aesthetic is **${data.primaryAesthetic || 'unique'}**. You have ${data.wardrobeCount || 0} items.\n\n`;
+          gapText += `**What you're missing:**\n`;
+          
+          data.gaps.slice(0, 5).forEach((gap: any) => {
+            const priority = gap.priority || 'medium';
+            const emoji = priority === 'high' ? '🔴' : priority === 'medium' ? '🟡' : '🟢';
+            gapText += `  ${emoji} **${gap.category}** — ${gap.suggestion || gap.reason || ''}\n`;
+          });
+          
           return {
             ...base,
-            text: data.summary || `Here's a breakdown of what's missing from your wardrobe:`,
+            text: gapText,
             gapAnalysis: data,
           };
-        } catch (e) {
-          console.error('Gap analysis error:', e);
-          return { 
-            ...base, 
-            text: "I couldn't run a complete scan on your wardrobe right now. Make sure you have items uploaded and try again!"
-          };
-        }
-      }
-
-      case 'style-explanation': {
-        try {
-          // Call WYA's real style DNA endpoint
-          const response = await wyaApi.getStyleDna(session.userId);
-          const dna = mapStyleDna(response);
-          
-          // Check if style DNA exists
-          if (!dna || !dna.styles) {
-            return {
-              ...base,
-              text: "You haven't completed your Style DNA quiz yet! Head to WYA and take the quiz to discover your aesthetic. 🧬\n\nOnce you complete it, I'll be able to explain your style in detail!"
-            };
-          }
-          
+        } catch (error) {
+          console.error('Gap analysis error:', error);
           return {
             ...base,
-            text: dna.summary || `Based on your wardrobe, your aesthetic reflects ${dna.styles || 'a unique personal style'}.`,
-            styleDna: dna,
-          };
-        } catch (e) {
-          console.error('Style DNA error:', e);
-          return { 
-            ...base, 
-            text: "I'm having trouble reading your style DNA right now. Make sure you've completed the Style Quiz in WYA!"
+            text: `I couldn't run a complete scan on your wardrobe right now. Make sure you have items uploaded and try again!`
           };
         }
       }
 
-      default:
-        return buildSmartReply(text, allItems, base);
+      // ── Style Explanation (already handled above) ─────────────────────────
+      // case 'style-explanation' is already handled above ^^
+
+      // ── Fallback: Smart Reply ──────────────────────────────────────────────
+      default: {
+        // Build a smart fallback with suggestions
+        let fallbackText = `I'm here to help with your wardrobe! 👗\n\nYou can ask me about:\n• **Outfits** — "What should I wear to college tomorrow?"\n• **Style DNA** — "Why am I a minimalist?"\n• **Aesthetic Aura** — "Show me my Aesthetic Aura"\n• **Wardrobe** — "Show me all my black tops"\n• **Gaps** — "What am I missing for winter?"`;
+        
+        // If wardrobe has items, add a personalized suggestion
+        if (allItems.length > 0) {
+          const randomItem = allItems[Math.floor(Math.random() * allItems.length)];
+          fallbackText += `\n\n👀 I see you have "${randomItem.name}" in your wardrobe. Try asking about it!`;
+        }
+        
+        return {
+          ...base,
+          text: fallbackText,
+        };
+      }
     }
   };
+
+  // ── Helper: Extract occasion from query ──────────────────────────────────────
+  function extractOccasion(text: string): string {
+    const lower = text.toLowerCase();
+    if (lower.includes('college') || lower.includes('class') || lower.includes('school')) return 'casual';
+    if (lower.includes('work') || lower.includes('meeting') || lower.includes('office')) return 'formal';
+    if (lower.includes('party') || lower.includes('club') || lower.includes('night out')) return 'party';
+    if (lower.includes('date') || lower.includes('dinner') || lower.includes('romantic')) return 'romantic';
+    if (lower.includes('gym') || lower.includes('workout') || lower.includes('sport')) return 'athleisure';
+    if (lower.includes('beach') || lower.includes('pool') || lower.includes('summer')) return 'beach';
+    return 'everyday';
+  }
 
   const handleDisconnect = () => {
     clearSession();
