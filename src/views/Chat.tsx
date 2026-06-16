@@ -28,13 +28,6 @@ interface ChatProps {
   onLogout: () => void;
 }
 
-interface LunaOrchestratorPayload {
-  text: string;
-  outfits?: any[];
-  gapAnalysis?: any;
-  styleDna?: any;
-}
-
 export default function Chat({ session, onLogout }: ChatProps) {
   const [messages, setMessages]       = useState<ChatMessage[]>([]);
   const [debugMode, setDebugMode]     = useState(false);
@@ -135,54 +128,96 @@ export default function Chat({ session, onLogout }: ChatProps) {
 
       case 'outfit-help': {
         try {
-          // Route through unified orchestration endpoint
-          const response = await wyaApi.post<LunaOrchestratorPayload>('/api/luna/chat', {
-            message: text,
-            intent: 'outfit-help'
-          });
-
+          // Get wardrobe items
+          const rawItems = await wyaApi.getWardrobe();
+          const items = (rawItems as WardrobeItemAPI[]).map(mapWardrobeItem);
+          
+          if (items.length === 0) {
+            return {
+              ...base,
+              text: "Your wardrobe is empty! Head to WYA and upload some clothes first. 🛍️"
+            };
+          }
+          
+          // Call the real outfit matcher
+          const response = await wyaApi.curateOutfits(items);
           const curated = (response.outfits || []).map(mapOutfit);
-
+          
+          if (curated.length === 0) {
+            return {
+              ...base,
+              text: "I couldn't create any outfit combinations from your current wardrobe. Try adding more variety! 👗"
+            };
+          }
+          
           return {
             ...base,
-            text: response.text || `I've put together some looks based on what you have:`,
+            text: `I've put together ${curated.length} look${curated.length > 1 ? 's' : ''} based on what you have:`,
             outfits: curated,
           };
         } catch (e) {
-          return { ...base, text: "I'm having trouble styling you right now. Let me try again in a bit!" };
+          console.error('Outfit generation error:', e);
+          return { 
+            ...base, 
+            text: "I'm having trouble styling you right now. Make sure you have items in your wardrobe and try again!"
+          };
         }
       }
 
       case 'gap-analysis': {
-        // Fix 404: Pass parameters directly through the orchestrator pipeline
-        const response = await wyaApi.post<LunaOrchestratorPayload>('/api/luna/chat', {
-          message: text,
-          intent: 'gap-analysis'
-        });
-
-        const data = mapGapAnalysis(response.gapAnalysis);
-        return {
-          ...base,
-          text: response.text || data.summary || `Here's a breakdown of what's missing from your collection:`,
-          gapAnalysis: data,
-        };
+        try {
+          // Call WYA's real gap analysis endpoint
+          const response = await wyaApi.getGapAnalysis();
+          const data = mapGapAnalysis(response);
+          
+          // Check if there are actual gaps
+          if (!data.gaps || data.gaps.length === 0) {
+            return {
+              ...base,
+              text: "Your wardrobe looks well-rounded! You have a good mix of items. Keep up the great style! ✨"
+            };
+          }
+          
+          return {
+            ...base,
+            text: data.summary || `Here's a breakdown of what's missing from your wardrobe:`,
+            gapAnalysis: data,
+          };
+        } catch (e) {
+          console.error('Gap analysis error:', e);
+          return { 
+            ...base, 
+            text: "I couldn't run a complete scan on your wardrobe right now. Make sure you have items uploaded and try again!"
+          };
+        }
       }
 
       case 'style-explanation': {
-        // Fix 404: Pipe raw textual prompt vectors directly to the ML analyzer pipeline
-        const response = await wyaApi.post<LunaOrchestratorPayload>('/api/luna/chat', {
-          message: text,
-          intent: 'style-explanation'
-        });
-
-        // Use the mapped output structure if returned, otherwise degrade gracefully to text response
-        const dna = response.styleDna ? mapStyleDna(response.styleDna) : null;
-
-        return {
-          ...base,
-          text: response.text || `Based on your wardrobe, your aesthetic reflects clean profiles.`,
-          styleDna: dna || undefined,
-        };
+        try {
+          // Call WYA's real style DNA endpoint
+          const response = await wyaApi.getStyleDna(session.userId);
+          const dna = mapStyleDna(response);
+          
+          // Check if style DNA exists
+          if (!dna || !dna.styles) {
+            return {
+              ...base,
+              text: "You haven't completed your Style DNA quiz yet! Head to WYA and take the quiz to discover your aesthetic. 🧬"
+            };
+          }
+          
+          return {
+            ...base,
+            text: dna.summary || `Based on your wardrobe, your aesthetic reflects ${dna.styles || 'a unique personal style'}.`,
+            styleDna: dna,
+          };
+        } catch (e) {
+          console.error('Style DNA error:', e);
+          return { 
+            ...base, 
+            text: "I'm having trouble reading your style DNA right now. Make sure you've completed the Style Quiz in WYA!"
+          };
+        }
       }
 
       default:
