@@ -35,18 +35,16 @@ export default function Chat({ session, onLogout }: ChatProps) {
   const [allItems, setAllItems]       = useState<WardrobeItem[]>([]);
   const [loadingCloset, setLoadingCloset] = useState(false);
 
-  // Welcome message
   useEffect(() => {
     setMessages([{
       id: 'welcome',
       sender: 'luna',
-      text: `Hey ${session.profileName}, I'm Luna — your personal stylist who knows your wardrobe.\n\nAsk me anything:\n\n- "Show me all my black tops"\n- "What should I wear to college tomorrow?"\n- "What am I missing for winter?"\n- "Why am I a minimalist?"\n- "Show me my Aesthetic Aura"`,
+      text: `Hey ${session.profileName}, I'm Luna — your personal stylist who knows your wardrobe.\n\nAsk me anything:\n\n- "Show me all my black tops"\n- "What should I wear to college tomorrow?"\n- "What am I missing for winter?"\n- "Why am I a minimalist?"\n- "Show me my Aesthetic Aura"\n- "Show me my wardrobe stats"`,
       timestamp: new Date().toISOString(),
       intent: 'chat',
     }]);
   }, [session.profileName]);
 
-  // Pre-load wardrobe
   useEffect(() => {
     (async () => {
       setLoadingCloset(true);
@@ -115,7 +113,6 @@ export default function Chat({ session, onLogout }: ChatProps) {
     };
 
     switch (intent) {
-      // Feature 1: Outfit Suggestions
       case 'outfit-help': {
         try {
           const [weather, dna, outfits] = await Promise.all([
@@ -159,7 +156,6 @@ export default function Chat({ session, onLogout }: ChatProps) {
         }
       }
 
-      // Feature 2: Style DNA Explanation
       case 'style-explanation': {
         try {
           const dna = await wyaApi.getStyleDna(session.userId);
@@ -193,7 +189,6 @@ export default function Chat({ session, onLogout }: ChatProps) {
         }
       }
 
-      // Feature 3: Aesthetic Aura
       case 'aesthetic-aura': {
         try {
           const aura = await wyaApi.getAestheticAura();
@@ -238,7 +233,6 @@ export default function Chat({ session, onLogout }: ChatProps) {
         }
       }
 
-      // Wardrobe Search
       case 'wardrobe-search': {
         const query = text.toLowerCase();
         const matched = allItems.filter(item =>
@@ -272,7 +266,6 @@ export default function Chat({ session, onLogout }: ChatProps) {
         };
       }
 
-      // Gap Analysis
       case 'gap-analysis': {
         try {
           const gaps = await wyaApi.getGapAnalysis();
@@ -309,9 +302,72 @@ export default function Chat({ session, onLogout }: ChatProps) {
         }
       }
 
-      // Fallback: Smart Reply
+      case 'analytics': {
+        try {
+          const stats = await wyaApi.getDashboardStats();
+          
+          let statsText = `Wardrobe Stats\n\n`;
+          statsText += `Total Items: ${stats.wardrobe_count || 0}\n`;
+          statsText += `Total Wears: ${stats.total_wears || 0}\n`;
+          statsText += `Style Archetype: ${stats.style_archetype || 'Not set'}\n`;
+          statsText += `Sustainability Score: ${stats.sustainability_score || 0}%\n`;
+          statsText += `New Items (30 days): ${stats.new_items_30_days || 0}\n\n`;
+          
+          if (stats.most_worn_item) {
+            statsText += `Most Worn: ${stats.most_worn_item.name} (${stats.most_worn_item.wear_count} times)\n`;
+          }
+          
+          if (stats.least_worn_item) {
+            statsText += `Least Worn: ${stats.least_worn_item.name} (${stats.least_worn_item.wear_count} times)\n`;
+          }
+          
+          return {
+            ...base,
+            text: statsText,
+          };
+        } catch (error) {
+          console.error('Analytics error:', error);
+          return {
+            ...base,
+            text: `I'm having trouble fetching your wardrobe stats right now. Try again later.`
+          };
+        }
+      }
+
+      case 'feedback-like': {
+        try {
+          const outfitId = extractOutfitId(text);
+          await wyaApi.saveFeedback('like', outfitId);
+          return {
+            ...base,
+            text: `Thanks for your feedback! I'll remember that you liked this.`
+          };
+        } catch (error) {
+          return {
+            ...base,
+            text: `I couldn't save your feedback. Try again.`
+          };
+        }
+      }
+
+      case 'feedback-dislike': {
+        try {
+          const outfitId = extractOutfitId(text);
+          await wyaApi.saveFeedback('dislike', outfitId);
+          return {
+            ...base,
+            text: `Thanks for your feedback! I'll remember that you didn't like this and suggest different styles.`
+          };
+        } catch (error) {
+          return {
+            ...base,
+            text: `I couldn't save your feedback. Try again.`
+          };
+        }
+      }
+
       default: {
-        let fallbackText = `I'm here to help with your wardrobe.\n\nYou can ask me about:\n- Outfits: "What should I wear to college tomorrow?"\n- Style DNA: "Why am I a minimalist?"\n- Aesthetic Aura: "Show me my Aesthetic Aura"\n- Wardrobe: "Show me all my black tops"\n- Gaps: "What am I missing for winter?"`;
+        let fallbackText = `I'm here to help with your wardrobe.\n\nYou can ask me about:\n- Outfits: "What should I wear to college tomorrow?"\n- Style DNA: "Why am I a minimalist?"\n- Aesthetic Aura: "Show me my Aesthetic Aura"\n- Wardrobe: "Show me all my black tops"\n- Gaps: "What am I missing for winter?"\n- Stats: "Show me my wardrobe stats"`;
         
         if (allItems.length > 0) {
           const randomItem = allItems[Math.floor(Math.random() * allItems.length)];
@@ -326,7 +382,6 @@ export default function Chat({ session, onLogout }: ChatProps) {
     }
   };
 
-  // Helper: Extract occasion from query
   function extractOccasion(text: string): string {
     const lower = text.toLowerCase();
     if (lower.includes('college') || lower.includes('class') || lower.includes('school')) return 'casual';
@@ -338,6 +393,11 @@ export default function Chat({ session, onLogout }: ChatProps) {
     return 'everyday';
   }
 
+  function extractOutfitId(text: string): string | undefined {
+    const match = text.match(/outfit[_\s]?id[_\s]?[:=]?\s*([a-zA-Z0-9-]+)/i);
+    return match ? match[1] : undefined;
+  }
+
   const handleDisconnect = () => {
     clearSession();
     onLogout();
@@ -346,7 +406,6 @@ export default function Chat({ session, onLogout }: ChatProps) {
   return (
     <div className="min-h-screen w-full flex flex-col bg-transparent font-sans relative overflow-hidden">
       
-      {/* Header Container */}
       <header className="border-b border-white/25 dark:border-zinc-900/40 bg-white/35 dark:bg-zinc-950/30 backdrop-blur-xl px-6 py-4 flex items-center justify-between shrink-0 relative z-10">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 bg-gradient-to-tr from-[#ebb3d4] via-[#c2caf5] to-[#9ae3d1] rounded-full flex items-center justify-center shadow-xs border border-white/40">
@@ -403,7 +462,6 @@ export default function Chat({ session, onLogout }: ChatProps) {
         </div>
       </header>
 
-      {/* Main Chat Interface Components */}
       <ChatWindow messages={messages} debugMode={debugMode} />
       
       <ChatInput
@@ -411,7 +469,6 @@ export default function Chat({ session, onLogout }: ChatProps) {
         disabled={messages.length > 0 && messages[messages.length - 1].isLoading === true}
       />
 
-      {/* Side Wardrobe Sliding Drawer Panel */}
       <AnimatePresence>
         {closetOpen && (
           <>
