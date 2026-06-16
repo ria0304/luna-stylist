@@ -1,6 +1,5 @@
 # Luna — Conversational AI Stylist
 
-
 Luna lets you talk to your wardrobe in plain English.
 
 It's a standalone chat interface built on top of [WYA](https://github.com/ria0304/WYA-Whats-Your-Aesthetic)'s fashion intelligence API — so before you say a word, Luna already knows what you own, what your style is, and what you're missing.
