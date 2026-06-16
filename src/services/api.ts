@@ -110,8 +110,32 @@ export const wyaApi = {
     });
   },
 
+  // ── FEATURE 1b: Context-Aware Outfit Match ─────────────────────────────────
+  async getOutfitMatchContext(context: any, limit?: number) {
+    return wyaRequest<any>('/api/ai/outfit-match-context', {
+      method: 'POST',
+      body: JSON.stringify({ context, limit: limit || 5 }),
+    });
+  },
+
+  // ── FEATURE 1c: Outfit Scoring ─────────────────────────────────────────────
+  async scoreOutfit(outfit: any) {
+    return wyaRequest<any>('/api/ai/outfit-score', {
+      method: 'POST',
+      body: JSON.stringify({ outfit }),
+    });
+  },
+
   // ── FEATURE 2: Style DNA ────────────────────────────────────────────────────
   // Uses getStyleDna() above ^^
+
+  async getStyleAnalytics() {
+    return wyaRequest<any>('/api/style/analytics');
+  },
+
+  async getEvolutionHistory() {
+    return wyaRequest<any>('/api/style/evolution/history');
+  },
 
   // ── FEATURE 3: Aesthetic Aura ──────────────────────────────────────────────
   async getAestheticAura() {
@@ -119,10 +143,10 @@ export const wyaApi = {
   },
 
   // ── FEATURE 4: Gap Analysis ─────────────────────────────────────────────────
-  async getGapAnalysis() {
+  async getGapAnalysis(inspiredCategory?: string, includeLinks?: boolean) {
     return wyaRequest<any>('/api/ai/gap-analysis', {
       method: 'POST',
-      body: JSON.stringify({}),
+      body: JSON.stringify({ inspired_category: inspiredCategory, include_shopping_links: includeLinks }),
     });
   },
 
@@ -161,6 +185,26 @@ export const wyaApi = {
     return wyaRequest<any>('/api/dashboard/stats');
   },
 
+  async getActivityTimeline(days?: number) {
+    return wyaRequest<any>(`/api/dashboard/activity?days=${days || 30}`);
+  },
+
+  // ── FEATURE 6b: Feedback ────────────────────────────────────────────────────
+  async saveFeedback(action: string, outfitId?: string, itemId?: string, context?: any) {
+    return wyaRequest<any>('/api/feedback', {
+      method: 'POST',
+      body: JSON.stringify({ action, outfit_id: outfitId, item_id: itemId, context }),
+    });
+  },
+
+  async getFeedbackHistory(limit?: number) {
+    return wyaRequest<any>(`/api/feedback/history?limit=${limit || 50}`);
+  },
+
+  async getFeedbackStats() {
+    return wyaRequest<any>('/api/feedback/stats');
+  },
+
   // ── FEATURE 10: User Profile ───────────────────────────────────────────────
   async getProfile() {
     return wyaRequest<any>('/api/user/profile');
@@ -192,5 +236,14 @@ export const wyaApi = {
       method: 'POST',
       body: JSON.stringify({ query }),
     });
+  },
+
+  // ── FEATURE 11: Wardrobe Analytics ─────────────────────────────────────────
+  async getWardrobeAnalytics() {
+    return wyaRequest<any>('/api/wardrobe/analytics');
+  },
+
+  async getStyleEvolutionData() {
+    return wyaRequest<any>('/api/wardrobe/analytics/evolution');
   },
 };
