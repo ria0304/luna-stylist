@@ -35,7 +35,7 @@ export default function ChatWindow({ messages, debugMode }: ChatWindowProps) {
               talk to your wardrobe
             </h3>
             <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 max-w-sm mx-auto leading-relaxed font-sans">
-              Ask what to wear, what you're missing, or what your style says about you.
+              Ask what to wear, what you are missing, or what your style says about you.
               Luna pulls from your real WYA wardrobe.
             </p>
           </motion.div>
