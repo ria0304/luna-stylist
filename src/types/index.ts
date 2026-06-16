@@ -12,6 +12,9 @@ export interface WardrobeItemAPI {
   wear_count?: number;
   last_worn?: string;
   created_at?: string;
+  price?: number;
+  brand?: string;
+  sustainability_score?: number;
 }
 
 /** Returned by GET /api/outfits — each saved outfit */
@@ -78,6 +81,23 @@ export interface WardrobeGapAPI {
   affiliateUrl?: string;
   dnaAlignmentScore?: number;
   gender?: string;
+  shopping_suggestions?: ShoppingSuggestionsAPI;
+  price_range?: PriceRangeAPI;
+}
+
+/** Shopping suggestions from gap analysis */
+export interface ShoppingSuggestionsAPI {
+  amazon?: string;
+  myntra?: string;
+  search_query?: string;
+  price_range?: PriceRangeAPI;
+}
+
+/** Price range suggestion */
+export interface PriceRangeAPI {
+  min: number;
+  max: number;
+  currency: string;
 }
 
 /** Returned by POST /api/ai/gap-analysis */
@@ -88,6 +108,8 @@ export interface GapAnalysisAPI {
   neutralRatio?: number;
   patternRatio?: number;
   wardrobeCount?: number;
+  sustainability_score?: number;
+  shopping_links_included?: boolean;
 }
 
 // ── FEATURE 3: Aesthetic Aura ──────────────────────────────────────────────
@@ -101,17 +123,142 @@ export interface AestheticAuraAPI {
   vibe: string;
 }
 
+// ── FEATURE 5: Dashboard & Analytics ──────────────────────────────────────
+
+/** Returned by GET /api/dashboard/stats */
+export interface DashboardStatsAPI {
+  wardrobe_count: number;
+  total_wears: number;
+  most_worn_item: {
+    name: string;
+    wear_count: number;
+  } | null;
+  least_worn_item: {
+    name: string;
+    wear_count: number;
+  } | null;
+  new_items_30_days: number;
+  style_archetype: string;
+  sustainability_score: number;
+  gap_items_count: number;
+  recent_activity: Array<{
+    type: string;
+    created_at: string;
+  }>;
+  last_updated: string;
+}
+
+/** Returned by GET /api/dashboard/activity */
+export interface ActivityTimelineAPI {
+  wear_logs: Array<{
+    created_at: string;
+    item_id: string;
+    occasion: string;
+    weather: string;
+  }>;
+  feedback_logs: Array<{
+    created_at: string;
+    action: string;
+    outfit_id: string;
+  }>;
+  total_wears: number;
+  total_feedback: number;
+  period_days: number;
+}
+
+// ── FEATURE 6: Feedback ────────────────────────────────────────────────────
+
+/** Returned by GET /api/feedback/history */
+export interface FeedbackItemAPI {
+  feedback_id: number;
+  user_id: string;
+  outfit_id: string | null;
+  item_id: string | null;
+  action: 'like' | 'dislike' | 'save' | 'wear' | 'skip';
+  context: string;
+  created_at: string;
+}
+
+/** Returned by GET /api/feedback/stats */
+export interface FeedbackStatsAPI {
+  total_feedback: number;
+  likes: number;
+  dislikes: number;
+  saves: number;
+  wears: number;
+  satisfaction_rate: number;
+}
+
+// ── FEATURE 9: Wardrobe Analytics ──────────────────────────────────────────
+
+/** Returned by GET /api/wardrobe/analytics */
+export interface WardrobeAnalyticsAPI {
+  total_items: number;
+  total_value: number;
+  most_worn: Array<{
+    name: string;
+    item_id: string;
+    wear_count: number;
+    category: string;
+    color: string;
+    last_worn: string | null;
+  }>;
+  least_worn: Array<{
+    name: string;
+    item_id: string;
+    wear_count: number;
+    category: string;
+    color: string;
+    created_at: string;
+  }>;
+  cost_per_wear: Array<{
+    name: string;
+    item_id: string;
+    price: number;
+    wear_count: number;
+    cost_per_wear: number;
+    category: string;
+    color: string;
+  }>;
+  category_distribution: Record<string, number>;
+  color_distribution: Record<string, number>;
+  sustainability_score: number;
+  average_wear_count: number;
+}
+
+/** Returned by GET /api/wardrobe/analytics/evolution */
+export interface StyleEvolutionAPI {
+  has_evolution: boolean;
+  message?: string;
+  trajectory: Array<{
+    timestamp: string;
+    archetype: string;
+    colors: string[];
+    comfort_level: number;
+  }>;
+  current_archetype?: string;
+  first_archetype?: string;
+  evolution_direction?: string;
+  total_snapshots: number;
+  timespan?: {
+    start: string;
+    end: string;
+  };
+}
+
 // ─── UI types (camelCase, used throughout Luna components) ────────────────────
 
 export interface WardrobeItem {
-  item_id: string;     // keep snake_case to match WYA — easier than aliasing
+  item_id: string;
   name: string;
   category: string;
   color: string;
   fabric?: string;
   image_url?: string;
   wear_count?: number;
-  // Derived / display helpers
+  price?: number;
+  brand?: string;
+  sustainability_score?: number;
   displayName: string;
 }
 
@@ -127,12 +274,12 @@ export interface Outfit {
 
 export interface StyleDna {
   hasDna: boolean;
-  styles: string[];        // parsed from the JSON string
+  styles: string[];
   comfortLevel?: string;
   colorPreference?: string;
   silhouette?: string;
   summary?: string;
-  primaryStyle: string;    // styles[0] capitalised
+  primaryStyle: string;
 }
 
 export interface WardrobeGap {
@@ -142,6 +289,21 @@ export interface WardrobeGap {
   priority: 'high' | 'medium' | 'low';
   affiliateQuery?: string;
   affiliateUrl?: string;
+  shoppingSuggestions?: ShoppingSuggestions;
+  priceRange?: PriceRange;
+}
+
+export interface ShoppingSuggestions {
+  amazon?: string;
+  myntra?: string;
+  searchQuery?: string;
+  priceRange?: PriceRange;
+}
+
+export interface PriceRange {
+  min: number;
+  max: number;
+  currency: string;
 }
 
 export interface GapAnalysis {
@@ -149,9 +311,8 @@ export interface GapAnalysis {
   primaryAesthetic?: string;
   wardrobeCount?: number;
   summary?: string;
+  sustainabilityScore?: number;
 }
-
-// ── FEATURE 1: Outfit Suggestions UI Types ──────────────────────────────────
 
 export interface WeatherData {
   condition: string;
@@ -169,14 +330,56 @@ export interface OutfitSuggestion {
   score: number;
 }
 
-// ── FEATURE 3: Aesthetic Aura UI Types ──────────────────────────────────────
-
 export interface AestheticAura {
   styles: Array<{ name: string; percentage: number }>;
   dominantColors: Array<{ color: string; percentage: number }>;
   summary: string;
   aestheticType: string;
   vibe: string;
+}
+
+// ── FEATURE 5: Dashboard UI Types ──────────────────────────────────────────
+
+export interface DashboardStats {
+  wardrobeCount: number;
+  totalWears: number;
+  mostWornItem: { name: string; wearCount: number } | null;
+  leastWornItem: { name: string; wearCount: number } | null;
+  newItems30Days: number;
+  styleArchetype: string;
+  sustainabilityScore: number;
+  gapItemsCount: number;
+  recentActivity: Array<{ type: string; createdAt: string }>;
+  lastUpdated: string;
+}
+
+export interface ActivityTimeline {
+  wearLogs: Array<{ createdAt: string; itemId: string; occasion: string; weather: string }>;
+  feedbackLogs: Array<{ createdAt: string; action: string; outfitId: string }>;
+  totalWears: number;
+  totalFeedback: number;
+  periodDays: number;
+}
+
+// ── FEATURE 6: Feedback UI Types ───────────────────────────────────────────
+
+export interface FeedbackItem {
+  feedbackId: number;
+  userId: string;
+  outfitId: string | null;
+  itemId: string | null;
+  action: 'like' | 'dislike' | 'save' | 'wear' | 'skip';
+  context: Record<string, any>;
+  createdAt: string;
+}
+
+export interface FeedbackStats {
+  totalFeedback: number;
+  likes: number;
+  dislikes: number;
+  saves: number;
+  wears: number;
+  satisfactionRate: number;
 }
 
 // ── Chat & Session ───────────────────────────────────────────────────────────
@@ -187,6 +390,9 @@ export type LunaIntent =
   | 'gap-analysis'
   | 'style-explanation'
   | 'aesthetic-aura'
+  | 'analytics'
+  | 'feedback-like'
+  | 'feedback-dislike'
   | 'chat';
 
 export interface ChatMessage {
@@ -200,6 +406,7 @@ export interface ChatMessage {
   styleDna?: StyleDna;
   gapAnalysis?: GapAnalysis;
   aestheticAura?: AestheticAura;
+  dashboardStats?: DashboardStats;
   isLoading?: boolean;
 }
 
@@ -208,9 +415,8 @@ export interface UserSession {
   email: string;
   full_name?: string;
   token: string;
-  // Derived display fields
-  profileName: string;     // full_name || email.split('@')[0]
-  styleArchetype?: string; // populated after style/dna fetch if desired
+  profileName: string;
+  styleArchetype?: string;
 }
 
 // ─── Mapper functions — convert API shapes → UI types ─────────────────────────
@@ -224,6 +430,9 @@ export function mapWardrobeItem(raw: WardrobeItemAPI): WardrobeItem {
     fabric: raw.fabric,
     image_url: raw.image_url,
     wear_count: raw.wear_count,
+    price: raw.price,
+    brand: raw.brand,
+    sustainability_score: raw.sustainability_score,
     displayName: raw.name,
   };
 }
@@ -271,16 +480,22 @@ export function mapGapAnalysis(raw: GapAnalysisAPI): GapAnalysis {
       priority: g.priority,
       affiliateQuery: g.affiliateQuery,
       affiliateUrl: g.affiliateUrl,
+      shoppingSuggestions: g.shopping_suggestions ? {
+        amazon: g.shopping_suggestions.amazon,
+        myntra: g.shopping_suggestions.myntra,
+        searchQuery: g.shopping_suggestions.search_query,
+        priceRange: g.shopping_suggestions.price_range,
+      } : undefined,
+      priceRange: g.price_range,
     })),
     primaryAesthetic: raw.primaryAesthetic,
     wardrobeCount: raw.wardrobeCount,
     summary: raw.primaryAesthetic
       ? `Your primary aesthetic is ${raw.primaryAesthetic}. You have ${raw.wardrobeCount ?? '?'} items.`
       : undefined,
+    sustainabilityScore: raw.sustainability_score,
   };
 }
-
-// ── FEATURE 1: Weather Mapper ───────────────────────────────────────────────
 
 export function mapWeather(raw: WeatherAPI): WeatherData {
   return {
@@ -292,8 +507,6 @@ export function mapWeather(raw: WeatherAPI): WeatherData {
   };
 }
 
-// ── FEATURE 3: Aesthetic Aura Mapper ───────────────────────────────────────
-
 export function mapAestheticAura(raw: AestheticAuraAPI): AestheticAura {
   return {
     styles: raw.styles || [],
@@ -301,6 +514,53 @@ export function mapAestheticAura(raw: AestheticAuraAPI): AestheticAura {
     summary: raw.summary || 'Your style is uniquely you!',
     aestheticType: raw.aesthetic_type || 'Unique',
     vibe: raw.vibe || 'Authentic',
+  };
+}
+
+export function mapDashboardStats(raw: DashboardStatsAPI): DashboardStats {
+  return {
+    wardrobeCount: raw.wardrobe_count,
+    totalWears: raw.total_wears,
+    mostWornItem: raw.most_worn_item ? {
+      name: raw.most_worn_item.name,
+      wearCount: raw.most_worn_item.wear_count,
+    } : null,
+    leastWornItem: raw.least_worn_item ? {
+      name: raw.least_worn_item.name,
+      wearCount: raw.least_worn_item.wear_count,
+    } : null,
+    newItems30Days: raw.new_items_30_days,
+    styleArchetype: raw.style_archetype,
+    sustainabilityScore: raw.sustainability_score,
+    gapItemsCount: raw.gap_items_count,
+    recentActivity: raw.recent_activity.map(a => ({
+      type: a.type,
+      createdAt: a.created_at,
+    })),
+    lastUpdated: raw.last_updated,
+  };
+}
+
+export function mapFeedbackItem(raw: any): FeedbackItem {
+  return {
+    feedbackId: raw.feedback_id,
+    userId: raw.user_id,
+    outfitId: raw.outfit_id,
+    itemId: raw.item_id,
+    action: raw.action,
+    context: raw.context ? JSON.parse(raw.context) : {},
+    createdAt: raw.created_at,
+  };
+}
+
+export function mapFeedbackStats(raw: FeedbackStatsAPI): FeedbackStats {
+  return {
+    totalFeedback: raw.total_feedback,
+    likes: raw.likes,
+    dislikes: raw.dislikes,
+    saves: raw.saves,
+    wears: raw.wears,
+    satisfactionRate: raw.satisfaction_rate,
   };
 }
 
