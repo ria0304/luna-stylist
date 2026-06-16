@@ -8,11 +8,11 @@ export async function buildSmartReply(
 ): Promise<ChatMessage> {
   const norm = text.toLowerCase().trim();
 
-  // ── 1. Instant Client-Side Helpers (Low Latency) ───────────────────────────
+  // 1. Instant Client-Side Helpers (Low Latency)
   if (norm.includes('help') || norm.includes('what can you do')) {
     return {
       ...base,
-      text: `Here's what you can ask me:\n\n• "Show me all my black tops"\n• "What should I wear to college tomorrow?"\n• "What am I missing for winter?"\n• "Why am I a minimalist?"\n\nJust talk to me like you'd text a friend — I'll figure out the rest.`,
+      text: `Here's what you can ask me:\n\n- "Show me all my black tops"\n- "What should I wear to college tomorrow?"\n- "What am I missing for winter?"\n- "Why am I a minimalist?"\n\nJust talk to me like you'd text a friend — I'll figure out the rest.`,
       intent: 'chat',
     } as ChatMessage;
   }
@@ -20,7 +20,7 @@ export async function buildSmartReply(
   if (norm.match(/^(hi|hello|hey|greetings)/)) {
     return {
       ...base,
-      text: `Hey! 👋 What are we wearing today?`,
+      text: `Hello. What are we wearing today?`,
       intent: 'chat',
     } as ChatMessage;
   }
@@ -28,12 +28,12 @@ export async function buildSmartReply(
   if (norm.includes('thank')) {
     return {
       ...base,
-      text: `Of course! Anything else?`,
+      text: `You're welcome. Anything else?`,
       intent: 'chat',
     } as ChatMessage;
   }
 
-  // ── 2. Live Orchestration Pipeline Fallback ────────────────────────────────
+  // 2. Live Orchestration Pipeline Fallback
   try {
     // Pipeline complex conversational queries straight into the WYA AI orchestrator endpoint
     const backendResponse = await wyaApi.post<{ text: string; outfits?: any[]; gapAnalysis?: any }>(
@@ -54,7 +54,7 @@ export async function buildSmartReply(
   } catch (error) {
     console.error('SmartReply remote orchestration failed:', error);
 
-    // ── 3. Strategic Local Context Fallback (If Backend is Offline) ──────────
+    // 3. Strategic Local Context Fallback (If Backend is Offline)
     if (norm.includes('cold') || norm.includes('winter')) {
       return {
         ...base,
@@ -82,7 +82,7 @@ export async function buildSmartReply(
     // Ultimate fallback if no keywords catch and backend network fails
     return {
       ...base,
-      text: `I'm having trouble connecting to my styling database right now. Let's try matching some wardrobe pieces or running a quick search in the meantime!`,
+      text: `I'm having trouble connecting to my styling database right now. Let's try matching some wardrobe pieces or running a quick search in the meantime.`,
       intent: 'chat',
     } as ChatMessage;
   }
