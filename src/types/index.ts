@@ -33,12 +33,36 @@ export interface CuratedOutfitAPI {
   items: WardrobeItemAPI[];
 }
 
+// ── FEATURE 1: Outfit Suggestions (Weather + AI Matcher) ──────────────────
+
+/** Returned by GET /api/weather */
+export interface WeatherAPI {
+  condition: string;
+  temperature: number;
+  humidity: number;
+  wind_speed: number;
+  location: string;
+}
+
+/** Returned by POST /api/ai/outfit-match */
+export interface OutfitMatchAPI {
+  outfits: Array<{
+    id: string;
+    name: string;
+    items: WardrobeItemAPI[];
+    reasoning: string;
+    score: number;
+  }>;
+}
+
 /** Returned by GET /api/style/dna/{user_id} */
 export interface StyleDnaAPI {
   has_dna: boolean;
   user_id?: string;
   styles?: string;         // JSON-serialised string: '["minimalist","classic"]'
   comfort_level?: string;
+  color_preference?: string;
+  silhouette?: string;
   summary?: string;
   created_at?: string;
 }
@@ -66,6 +90,17 @@ export interface GapAnalysisAPI {
   wardrobeCount?: number;
 }
 
+// ── FEATURE 3: Aesthetic Aura ──────────────────────────────────────────────
+
+/** Returned by GET /api/style/aura */
+export interface AestheticAuraAPI {
+  styles: Array<{ name: string; percentage: number }>;
+  dominantColors: Array<{ color: string; percentage: number }>;
+  summary: string;
+  aesthetic_type: string;
+  vibe: string;
+}
+
 // ─── UI types (camelCase, used throughout Luna components) ────────────────────
 
 export interface WardrobeItem {
@@ -86,12 +121,16 @@ export interface Outfit {
   vibe?: string;
   occasion?: string;
   items: WardrobeItem[];
+  reasoning?: string;
+  score?: number;
 }
 
 export interface StyleDna {
   hasDna: boolean;
   styles: string[];        // parsed from the JSON string
   comfortLevel?: string;
+  colorPreference?: string;
+  silhouette?: string;
   summary?: string;
   primaryStyle: string;    // styles[0] capitalised
 }
@@ -112,11 +151,42 @@ export interface GapAnalysis {
   summary?: string;
 }
 
+// ── FEATURE 1: Outfit Suggestions UI Types ──────────────────────────────────
+
+export interface WeatherData {
+  condition: string;
+  temperature: number;
+  humidity: number;
+  wind_speed: number;
+  location: string;
+}
+
+export interface OutfitSuggestion {
+  id: string;
+  name: string;
+  items: WardrobeItem[];
+  reasoning: string;
+  score: number;
+}
+
+// ── FEATURE 3: Aesthetic Aura UI Types ──────────────────────────────────────
+
+export interface AestheticAura {
+  styles: Array<{ name: string; percentage: number }>;
+  dominantColors: Array<{ color: string; percentage: number }>;
+  summary: string;
+  aestheticType: string;
+  vibe: string;
+}
+
+// ── Chat & Session ───────────────────────────────────────────────────────────
+
 export type LunaIntent =
   | 'outfit-help'
   | 'wardrobe-search'
   | 'gap-analysis'
   | 'style-explanation'
+  | 'aesthetic-aura'
   | 'chat';
 
 export interface ChatMessage {
@@ -129,6 +199,7 @@ export interface ChatMessage {
   wardrobeItems?: WardrobeItem[];
   styleDna?: StyleDna;
   gapAnalysis?: GapAnalysis;
+  aestheticAura?: AestheticAura;
   isLoading?: boolean;
 }
 
@@ -157,13 +228,15 @@ export function mapWardrobeItem(raw: WardrobeItemAPI): WardrobeItem {
   };
 }
 
-export function mapOutfit(raw: OutfitAPI | CuratedOutfitAPI): Outfit {
+export function mapOutfit(raw: OutfitAPI | CuratedOutfitAPI | any): Outfit {
   return {
     id: (raw as OutfitAPI).id || `curated-${Date.now()}-${Math.random()}`,
     name: raw.name,
     vibe: raw.vibe,
     occasion: (raw as OutfitAPI & { occasion?: string }).occasion,
     items: (raw.items || []).map(mapWardrobeItem),
+    reasoning: raw.reasoning,
+    score: raw.score,
   };
 }
 
@@ -180,6 +253,8 @@ export function mapStyleDna(raw: StyleDnaAPI): StyleDna {
     hasDna: raw.has_dna,
     styles,
     comfortLevel: raw.comfort_level,
+    colorPreference: raw.color_preference,
+    silhouette: raw.silhouette,
     summary: raw.summary,
     primaryStyle: styles.length > 0
       ? styles[0].charAt(0).toUpperCase() + styles[0].slice(1)
@@ -202,6 +277,30 @@ export function mapGapAnalysis(raw: GapAnalysisAPI): GapAnalysis {
     summary: raw.primaryAesthetic
       ? `Your primary aesthetic is ${raw.primaryAesthetic}. You have ${raw.wardrobeCount ?? '?'} items.`
       : undefined,
+  };
+}
+
+// ── FEATURE 1: Weather Mapper ───────────────────────────────────────────────
+
+export function mapWeather(raw: WeatherAPI): WeatherData {
+  return {
+    condition: raw.condition || 'unknown',
+    temperature: raw.temperature || 0,
+    humidity: raw.humidity || 0,
+    wind_speed: raw.wind_speed || 0,
+    location: raw.location || 'Unknown',
+  };
+}
+
+// ── FEATURE 3: Aesthetic Aura Mapper ───────────────────────────────────────
+
+export function mapAestheticAura(raw: AestheticAuraAPI): AestheticAura {
+  return {
+    styles: raw.styles || [],
+    dominantColors: raw.dominantColors || [],
+    summary: raw.summary || 'Your style is uniquely you!',
+    aestheticType: raw.aesthetic_type || 'Unique',
+    vibe: raw.vibe || 'Authentic',
   };
 }
 
