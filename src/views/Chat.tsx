@@ -115,14 +115,32 @@ export default function Chat({ session, onLogout }: ChatProps) {
         const matched = allItems.filter(item =>
           item.name.toLowerCase().includes(query) ||
           item.category.toLowerCase().includes(query) ||
-          (item.color?.toLowerCase() ?? '').includes(query)
+          (item.color?.toLowerCase() ?? '').includes(query) ||
+          (item.fabric?.toLowerCase() ?? '').includes(query)
         );
+        
+        if (matched.length > 0) {
+          return {
+            ...base,
+            text: `I found ${matched.length} item${matched.length > 1 ? 's' : ''} in your wardrobe that match "${text}":`,
+            wardrobeItems: matched,
+          };
+        }
+        
+        // Show available categories/colors to help user
+        const categories = [...new Set(allItems.map(i => i.category))];
+        const colors = [...new Set(allItems.map(i => i.color))];
+        const fabrics = [...new Set(allItems.map(i => i.fabric).filter(Boolean))];
+        
+        let suggestions = 'Try searching for:\n';
+        if (colors.length > 0) suggestions += `• Colors: ${colors.join(', ')}\n`;
+        if (categories.length > 0) suggestions += `• Categories: ${categories.join(', ')}\n`;
+        if (fabrics.length > 0) suggestions += `• Fabrics: ${fabrics.join(', ')}`;
+        
         return {
           ...base,
-          text: matched.length > 0
-            ? `I found ${matched.length} items in your wardrobe that match your search:`
-            : `I couldn't find anything matching that in your wardrobe. Try searching for a specific color or category?`,
-          wardrobeItems: matched,
+          text: `I couldn't find anything matching "${text}" in your wardrobe.\n\n${suggestions}`,
+          wardrobeItems: [],
         };
       }
 
@@ -202,7 +220,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
           if (!dna || !dna.styles) {
             return {
               ...base,
-              text: "You haven't completed your Style DNA quiz yet! Head to WYA and take the quiz to discover your aesthetic. 🧬"
+              text: "You haven't completed your Style DNA quiz yet! Head to WYA and take the quiz to discover your aesthetic. 🧬\n\nOnce you complete it, I'll be able to explain your style in detail!"
             };
           }
           
