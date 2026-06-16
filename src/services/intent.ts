@@ -11,9 +11,12 @@ import { LunaIntent } from '../types';
  *  1. style-explanation  — "why am i", "dna", "aesthetic", "archetype"
  *  2. aesthetic-aura     — "aura", "spotify wrapped", "style card", "vibe"
  *  3. gap-analysis       — "missing", "need", "what am i lacking", "buy"
- *  4. outfit-help        — "wear", "outfit", "what should i", "look for", "dressed"
- *  5. wardrobe-search    — "show", "search", "find", "all my", specific garments
- *  6. chat               — fallback (now handled intelligently)
+ *  4. analytics          — "stats", "analytics", "dashboard", "wardrobe stats"
+ *  5. outfit-help        — "wear", "outfit", "what should i", "look for", "dressed"
+ *  6. wardrobe-search    — "show", "search", "find", "all my", specific garments
+ *  7. feedback-like      — "like", "love", "favorite"
+ *  8. feedback-dislike   — "dislike", "hate", "not a fan"
+ *  9. chat               — fallback (now handled intelligently)
  */
 
 interface IntentRule {
@@ -111,7 +114,29 @@ const RULES: IntentRule[] = [
     ],
   },
 
-  // 4. Outfit help (FEATURE 1)
+  // 4. Analytics (NEW)
+  {
+    intent: 'analytics',
+    required: [
+      'wardrobe stats',
+      'my stats',
+      'analytics',
+      'dashboard',
+      'show my stats',
+      'how many items',
+      'most worn',
+      'least worn',
+      'total items',
+      'wear count',
+      'sustainability score',
+      'my wardrobe health',
+      'closet stats',
+      'style stats',
+      'wardrobe analytics',
+    ],
+  },
+
+  // 5. Outfit help (FEATURE 1)
   {
     intent: 'outfit-help',
     required: [
@@ -157,7 +182,7 @@ const RULES: IntentRule[] = [
     ],
   },
 
-  // 5. Wardrobe search
+  // 6. Wardrobe search
   {
     intent: 'wardrobe-search',
     required: [
@@ -190,6 +215,38 @@ const RULES: IntentRule[] = [
       'find me',
     ],
   },
+
+  // 7. Feedback - Like (NEW)
+  {
+    intent: 'feedback-like',
+    required: [
+      'i like',
+      'i love',
+      'that is my favorite',
+      'this is my favorite',
+      'i really like',
+      'i love this',
+      'favorite outfit',
+      'i like this outfit',
+      'i love this outfit',
+    ],
+  },
+
+  // 8. Feedback - Dislike (NEW)
+  {
+    intent: 'feedback-dislike',
+    required: [
+      'i dislike',
+      'i hate',
+      'not a fan',
+      'i dont like',
+      'i do not like',
+      'i hate this',
+      'i dislike this',
+      'not my style',
+      'not for me',
+    ],
+  },
 ];
 
 export function classifyIntent(message: string): LunaIntent {
@@ -209,42 +266,63 @@ export const getIntentMetadata = (intent: LunaIntent) => {
   switch (intent) {
     case 'outfit-help':
       return {
-        label: '👗 Outfit Suggestions',
+        label: 'Outfit Suggestions',
         route: 'GET /api/weather → GET /api/style/dna → POST /api/ai/outfit-match',
         color: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30',
         description: 'Weather + Style DNA + AI Matcher',
       };
     case 'style-explanation':
       return {
-        label: '🧬 Style DNA',
+        label: 'Style DNA',
         route: 'GET /api/style/dna/{user_id}',
         color: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30',
         description: 'Your aesthetic type, color preference, comfort level, silhouette',
       };
     case 'aesthetic-aura':
       return {
-        label: '✨ Aesthetic Aura',
+        label: 'Aesthetic Aura',
         route: 'GET /api/style/aura',
         color: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/30',
         description: 'Spotify Wrapped-style style card',
       };
     case 'wardrobe-search':
       return {
-        label: '🔍 Wardrobe Search',
+        label: 'Wardrobe Search',
         route: 'GET /api/wardrobe (client-side filter)',
         color: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30',
         description: 'Search your wardrobe items',
       };
     case 'gap-analysis':
       return {
-        label: '📊 Gap Analysis',
+        label: 'Gap Analysis',
         route: 'POST /api/ai/gap-analysis',
         color: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30',
         description: 'Find what\'s missing from your wardrobe',
       };
+    case 'analytics':
+      return {
+        label: 'Wardrobe Analytics',
+        route: 'GET /api/dashboard/stats',
+        color: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30',
+        description: 'Wardrobe stats, most/least worn, sustainability',
+      };
+    case 'feedback-like':
+      return {
+        label: 'Feedback (Like)',
+        route: 'POST /api/feedback',
+        color: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/20 dark:text-green-400 dark:border-green-900/30',
+        description: 'Save feedback for outfit',
+      };
+    case 'feedback-dislike':
+      return {
+        label: 'Feedback (Dislike)',
+        route: 'POST /api/feedback',
+        color: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/30',
+        description: 'Save feedback for outfit',
+      };
     default:
       return {
-        label: '💬 Smart Reply',
+        label: 'Smart Reply',
         route: 'wardrobe context + rule engine',
         color: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-800/30',
         description: 'Context-aware fallback responses',
