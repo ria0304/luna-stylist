@@ -9,10 +9,11 @@ import { LunaIntent } from '../types';
  *
  * Priority:
  *  1. style-explanation  — "why am i", "dna", "aesthetic", "archetype"
- *  2. gap-analysis       — "missing", "need", "what am i lacking", "buy"
- *  3. outfit-help        — "wear", "outfit", "what should i", "look for", "dressed"
- *  4. wardrobe-search    — "show", "search", "find", "all my", specific garments
- *  5. chat               — fallback (now handled intelligently)
+ *  2. aesthetic-aura     — "aura", "spotify wrapped", "style card", "vibe"
+ *  3. gap-analysis       — "missing", "need", "what am i lacking", "buy"
+ *  4. outfit-help        — "wear", "outfit", "what should i", "look for", "dressed"
+ *  5. wardrobe-search    — "show", "search", "find", "all my", specific garments
+ *  6. chat               — fallback (now handled intelligently)
  */
 
 interface IntentRule {
@@ -22,7 +23,7 @@ interface IntentRule {
 }
 
 const RULES: IntentRule[] = [
-  // 1. Style explanation
+  // 1. Style explanation (FEATURE 2)
   {
     intent: 'style-explanation',
     required: [
@@ -49,10 +50,39 @@ const RULES: IntentRule[] = [
       'y2k',
       'my vibe',
       'fashion personality',
+      'what kind of style',
+      'my style identity',
+      'aesthetic type',
+      'fashion archetype',
     ],
   },
 
-  // 2. Gap analysis
+  // 2. Aesthetic Aura (FEATURE 3)
+  {
+    intent: 'aesthetic-aura',
+    required: [
+      'aura',
+      'spotify wrapped',
+      'spotify',
+      'wrapped',
+      'style card',
+      'my vibe card',
+      'aesthetic card',
+      'show my aura',
+      'my aesthetic aura',
+      'generate aura',
+      'vibe check',
+      'fashion aura',
+      'style aura',
+      'what is my aura',
+      'whats my aura',
+      "what's my aura",
+      'aura style',
+      'aura card',
+    ],
+  },
+
+  // 3. Gap analysis
   {
     intent: 'gap-analysis',
     required: [
@@ -76,10 +106,12 @@ const RULES: IntentRule[] = [
       'upgrade my',
       'complete my wardrobe',
       'capsule wardrobe',
+      'winter essentials',
+      'summer essentials',
     ],
   },
 
-  // 3. Outfit help
+  // 4. Outfit help (FEATURE 1)
   {
     intent: 'outfit-help',
     required: [
@@ -117,10 +149,15 @@ const RULES: IntentRule[] = [
       'pair with',
       'match with',
       'combine with',
+      'get dressed',
+      'dressing for',
+      'outfit idea',
+      'outfit inspiration',
+      'lookbook',
     ],
   },
 
-  // 4. Wardrobe search
+  // 5. Wardrobe search
   {
     intent: 'wardrobe-search',
     required: [
@@ -148,6 +185,9 @@ const RULES: IntentRule[] = [
       'my bags',
       'how many',
       'count my',
+      'where is',
+      'where are',
+      'find me',
     ],
   },
 ];
@@ -169,33 +209,45 @@ export const getIntentMetadata = (intent: LunaIntent) => {
   switch (intent) {
     case 'outfit-help':
       return {
-        label: 'Outfit Recommendation',
-        route: 'GET /api/outfits → POST /api/ai/curate-outfits',
+        label: '👗 Outfit Suggestions',
+        route: 'GET /api/weather → GET /api/style/dna → POST /api/ai/outfit-match',
         color: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30',
-      };
-    case 'wardrobe-search':
-      return {
-        label: 'Wardrobe Search',
-        route: 'GET /api/wardrobe (client-side filter)',
-        color: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30',
-      };
-    case 'gap-analysis':
-      return {
-        label: 'Gap Analysis',
-        route: 'POST /api/ai/gap-analysis',
-        color: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30',
+        description: 'Weather + Style DNA + AI Matcher',
       };
     case 'style-explanation':
       return {
-        label: 'Style DNA',
+        label: '🧬 Style DNA',
         route: 'GET /api/style/dna/{user_id}',
         color: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30',
+        description: 'Your aesthetic type, color preference, comfort level, silhouette',
+      };
+    case 'aesthetic-aura':
+      return {
+        label: '✨ Aesthetic Aura',
+        route: 'GET /api/style/aura',
+        color: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/30',
+        description: 'Spotify Wrapped-style style card',
+      };
+    case 'wardrobe-search':
+      return {
+        label: '🔍 Wardrobe Search',
+        route: 'GET /api/wardrobe (client-side filter)',
+        color: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30',
+        description: 'Search your wardrobe items',
+      };
+    case 'gap-analysis':
+      return {
+        label: '📊 Gap Analysis',
+        route: 'POST /api/ai/gap-analysis',
+        color: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30',
+        description: 'Find what\'s missing from your wardrobe',
       };
     default:
       return {
-        label: 'Smart Reply',
+        label: '💬 Smart Reply',
         route: 'wardrobe context + rule engine',
         color: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-800/30',
+        description: 'Context-aware fallback responses',
       };
   }
 };
