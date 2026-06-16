@@ -45,7 +45,7 @@ export const wyaApi = {
     });
   },
 
-  // ── Feature Specific Methods ───────────────────────────────────────────────
+  // ── Authentication ──────────────────────────────────────────────────────────
   /**
    * Authenticate with WYA credentials.
    * Returns { access_token, user: { user_id, email, full_name, gender, ... } }
@@ -74,10 +74,10 @@ export const wyaApi = {
     localStorage.removeItem('luna_wya_token');
   },
 
+  // ── Wardrobe ──────────────────────────────────────────────────────────────────
   /**
    * GET /api/wardrobe
    * Returns a flat array of wardrobe items (snake_case fields).
-   * WYA does not support ?q= filtering server-side — filtering is done client-side in Luna.
    */
   async getWardrobe() {
     return wyaRequest<unknown[]>('/api/wardrobe');
@@ -86,31 +86,89 @@ export const wyaApi = {
   /**
    * GET /api/outfits
    * Returns saved outfits for the current user.
-   * Used for the outfit-help intent (no image needed, unlike /api/ai/outfit-match).
    */
   async getSavedOutfits() {
     return wyaRequest<unknown[]>('/api/outfits');
   },
 
+  // ── FEATURE 1: Outfit Suggestions ──────────────────────────────────────────
+  /**
+   * GET /api/weather
+   * Returns current weather data for the user's location.
+   */
+  async getWeather() {
+    return wyaRequest<{
+      condition: string;
+      temperature: number;
+      humidity: number;
+      wind_speed: number;
+      location: string;
+    }>('/api/weather');
+  },
+
+  /**
+   * GET /api/style/dna/{user_id}
+   * Returns Style DNA data for the user.
+   */
+  async getStyleDna(userId: string) {
+    return wyaRequest<{
+      has_dna: boolean;
+      styles: string;
+      comfort_level: string;
+      color_preference: string;
+      silhouette: string;
+      summary: string;
+    }>(`/api/style/dna/${userId}`);
+  },
+
+  /**
+   * POST /api/ai/outfit-match
+   * Returns outfit suggestions based on occasion, weather, and style DNA.
+   */
+  async getOutfitMatch(occasion?: string, weather?: string) {
+    return wyaRequest<{
+      outfits: Array<{
+        id: string;
+        name: string;
+        items: any[];
+        reasoning: string;
+        score: number;
+      }>;
+    }>('/api/ai/outfit-match', {
+      method: 'POST',
+      body: JSON.stringify({ occasion, weather }),
+    });
+  },
+
+  // ── FEATURE 2: Style DNA Explanation ───────────────────────────────────────
+  // Uses getStyleDna() above ^^
+
+  // ── FEATURE 3: Aesthetic Aura ──────────────────────────────────────────────
+  /**
+   * GET /api/style/aura
+   * Returns Aesthetic Aura data (Spotify Wrapped-style style card).
+   */
+  async getAestheticAura() {
+    return wyaRequest<{
+      styles: Array<{ name: string; percentage: number }>;
+      dominantColors: Array<{ color: string; percentage: number }>;
+      summary: string;
+      aesthetic_type: string;
+      vibe: string;
+    }>('/api/style/aura');
+  },
+
+  // ── Existing Features ────────────────────────────────────────────────────────
   /**
    * POST /api/ai/curate-outfits
    * Generates outfit suggestions from the wardrobe item list.
    * Body: { items: WardrobeItemAPI[] }
-   * Used when the user asks what to wear and has no saved outfits.
    */
   async curateOutfits(items: unknown[]) {
     return wyaRequest<unknown>('/api/ai/curate-outfits', {
       method: 'POST',
       body: JSON.stringify({ items }),
     });
-  },
-
-  /**
-   * GET /api/style/dna/{user_id}
-   * Returns { has_dna, styles (JSON string), comfort_level, summary }
-   */
-  async getStyleDna(userId: string) {
-    return wyaRequest<unknown>(`/api/style/dna/${userId}`);
   },
 
   /**
@@ -125,10 +183,35 @@ export const wyaApi = {
   },
 
   /**
-   * GET /api/style/aura
+   * GET /api/style/aura (already defined above ^^)
    * Returns aesthetic breakdown percentages and dominant colors.
    */
-  async getStyleAura() {
-    return wyaRequest<unknown>('/api/style/aura');
+  // async getStyleAura() { ... }  // Now renamed to getAestheticAura() for clarity
+
+  /**
+   * POST /api/trip/curate
+   * Returns packing suggestions for a trip.
+   */
+  async getTripPacking(destination: string, days: number) {
+    return wyaRequest<unknown>('/api/trip/curate', {
+      method: 'POST',
+      body: JSON.stringify({ destination, days }),
+    });
+  },
+
+  /**
+   * GET /api/evolution
+   * Returns style evolution data over time.
+   */
+  async getEvolution() {
+    return wyaRequest<unknown>('/api/evolution');
+  },
+
+  /**
+   * GET /api/green-score
+   * Returns sustainability score for the wardrobe.
+   */
+  async getGreenScore() {
+    return wyaRequest<unknown>('/api/green-score');
   },
 };
