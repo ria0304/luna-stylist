@@ -10,10 +10,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify package-lock.json exists
+        run: |
+          if [ -f "package-lock.json" ]; then
+            echo "✓ package-lock.json found"
+          else
+            echo "✗ package-lock.json missing"
+            exit 1
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Install dependencies
         run: |
@@ -45,8 +56,6 @@ jobs:
   deploy-server:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
       - name: Deploy Luna server to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -59,4 +68,9 @@ jobs:
             docker build -t luna-server ./server
             docker stop luna || true
             docker rm luna || true
-            docker run -d --name luna --restart unless-stopped -p 8001:8001 --env-file ~/luna.env luna-server
+            docker run -d \
+              --name luna \
+              --restart unless-stopped \
+              -p 8001:8001 \
+              --env-file ~/luna.env \
+              luna-server
