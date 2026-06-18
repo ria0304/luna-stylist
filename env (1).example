@@ -1,0 +1,2 @@
+WYA_API_URL=http://localhost:8000
+ALLOWED_ORIGINS=http://localhost:5173,https://your-cloudfront-url.cloudfront.net
