@@ -1,59 +1,62 @@
-name: Deploy to S3
-
+name: Deploy to AWS
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy-frontend:
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    
-    - name: Verify package-lock.json exists
-      run: |
-        echo "Repository contents:"
-        ls -la
-        echo "Package lock file check:"
-        if [ -f "package-lock.json" ]; then
-          echo "✓ package-lock.json found"
-          cat package-lock.json | head -10
-        else
-          echo "✗ package-lock.json missing"
-          exit 1
-        fi
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: 'package-lock.json'
-    
-    - name: Install dependencies
-      run: |
-        rm -rf node_modules package-lock.json
-        npm install
-        ls -la node_modules | head -5
-    
-    - name: Build
-      run: npm run build
-      env:
-        VITE_WYA_API_URL: ${{ secrets.VITE_WYA_API_URL }}
-    
-    - name: Deploy to S3
-      if: github.ref == 'refs/heads/main'
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ap-south-1
-    
-    - name: Sync to S3
-      if: github.ref == 'refs/heads/main'
-      run: |
-        aws s3 sync dist/ s3://luna-stylist --delete
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_WYA_API_URL: ${{ secrets.VITE_WYA_API_URL }}
+          VITE_LUNA_API_URL: ${{ secrets.VITE_LUNA_API_URL }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: Sync to S3
+        run: aws s3 sync dist/ s3://luna-stylist --delete
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.LUNA_CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+  deploy-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy Luna server to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/luna-stylist
+            git pull origin main
+            docker build -t luna-server ./server
+            docker stop luna || true
+            docker rm luna || true
+            docker run -d --name luna --restart unless-stopped -p 8001:8001 --env-file ~/luna.env luna-server
