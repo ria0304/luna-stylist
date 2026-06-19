@@ -85,7 +85,7 @@ export const wyaApi = {
 
   // ── FEATURE 1: Outfit Suggestions ──────────────────────────────────────────
   async getWeather() {
-    return wyaRequest<any>('/api/weather');
+    return wyaRequest<any>('/api/ai/weather');
   },
 
   async getStyleDna(userId: string) {
