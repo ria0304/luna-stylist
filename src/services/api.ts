@@ -247,3 +247,29 @@ export const wyaApi = {
     return wyaRequest<any>('/api/wardrobe/analytics/evolution');
   },
 };
+
+
+// ── Luna's own backend (LLM-powered general fashion Q&A) ───────────────────
+
+const LUNA_BASE = import.meta.env.VITE_LUNA_API_URL as string;
+
+export const lunaApi = {
+  async chat(message: string, token: string, wardrobeItems: any[] = []) {
+    const response = await fetch(`${LUNA_BASE}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        token,
+        wardrobe_items: wardrobeItems,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(`${response.status}: ${err.detail || response.statusText}`);
+    }
+
+    return response.json() as Promise<{ reply: string; intent: string; data?: any }>;
+  },
+};
