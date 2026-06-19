@@ -118,7 +118,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
           const [weather, dna, outfits] = await Promise.all([
             wyaApi.getWeather().catch(() => ({ condition: 'unknown', temperature: 0 })),
             wyaApi.getStyleDna(session.userId).catch(() => ({ has_dna: false })),
-            wyaApi.getOutfitMatch(extractOccasion(text)).catch(() => ({ outfits: [] }))
+            wyaApi.getOutfitMatchContext({ occasion: extractOccasion(text) }).catch(() => ({ outfits: [] }))
           ]);
 
           if (!outfits.outfits || outfits.outfits.length === 0) {
