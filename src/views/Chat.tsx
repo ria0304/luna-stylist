@@ -20,7 +20,7 @@ import { wyaApi } from '../services/api';
 import { classifyIntent } from '../services/intent';
 import { buildSmartReply } from '../services/smartReply';
 import { clearSession } from '../services/auth';
-import { LogOut, Settings, Sparkles, Grid, X, Shirt } from 'lucide-react';
+import { LogOut, Sparkles, Grid, X, Shirt } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ChatProps {
@@ -30,7 +30,6 @@ interface ChatProps {
 
 export default function Chat({ session, onLogout }: ChatProps) {
   const [messages, setMessages]       = useState<ChatMessage[]>([]);
-  const [debugMode, setDebugMode]     = useState(false);
   const [closetOpen, setClosetOpen]   = useState(false);
   const [allItems, setAllItems]       = useState<WardrobeItem[]>([]);
   const [loadingCloset, setLoadingCloset] = useState(false);
@@ -372,17 +371,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
       }
 
       default: {
-        let fallbackText = `I'm here to help with your wardrobe.\n\nYou can ask me about:\n- Outfits: "What should I wear to college tomorrow?"\n- Style DNA: "Why am I a minimalist?"\n- Aesthetic Aura: "Show me my Aesthetic Aura"\n- Wardrobe: "Show me all my black tops"\n- Gaps: "What am I missing for winter?"\n- Stats: "Show me my wardrobe stats"`;
-        
-        if (allItems.length > 0) {
-          const randomItem = allItems[Math.floor(Math.random() * allItems.length)];
-          fallbackText += `\n\nI see you have "${randomItem.name}" in your wardrobe. Try asking about it.`;
-        }
-        
-        return {
-          ...base,
-          text: fallbackText,
-        };
+        return buildSmartReply(text, allItems, base, session.token);
       }
     }
   };
@@ -432,21 +421,6 @@ export default function Chat({ session, onLogout }: ChatProps) {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setDebugMode(!debugMode)}
-            className={`px-2.5 py-1.5 rounded-lg border text-xs font-sans font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-              debugMode
-                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 border-zinc-800'
-                : 'bg-white/45 text-zinc-600 dark:bg-zinc-900/45 dark:text-zinc-400 border-white/35 hover:bg-white/65'
-            }`}
-          >
-            <Settings size={12} className={debugMode ? 'animate-spin-slow' : ''} />
-            <span className="hidden sm:inline">Diagnostics</span>
-            <span className="text-[9px] px-1 bg-zinc-550/10 dark:bg-white/10 rounded">
-              {debugMode ? 'ON' : 'OFF'}
-            </span>
-          </button>
-
-          <button
             onClick={() => setClosetOpen(true)}
             className="p-1.5 bg-white/45 dark:bg-zinc-900/45 border border-white/35 dark:border-zinc-800/40 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 font-sans text-xs flex items-center gap-1.5 cursor-pointer backdrop-blur-sm hover:bg-white/65"
           >
@@ -467,7 +441,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
         </div>
       </header>
 
-      <ChatWindow messages={messages} debugMode={debugMode} />
+      <ChatWindow messages={messages} />
       
       <ChatInput
         onSendMessage={handleSendMessage}
