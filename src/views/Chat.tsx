@@ -116,9 +116,9 @@ export default function Chat({ session, onLogout }: ChatProps) {
       case 'outfit-help': {
         try {
           const [weather, dna, outfits] = await Promise.all([
-            wyaApi.getWeather().catch(() => ({ condition: 'unknown', temperature: 0 })),
+            wyaApi.getWeather().catch(() => ({ condition: 'unknown', temp: 0 })),
             wyaApi.getStyleDna(session.userId).catch(() => ({ has_dna: false })),
-            wyaApi.getOutfitMatchContext({ occasion: extractOccasion(text) }).catch(() => ({ outfits: [] }))
+            wyaApi.getOutfitMatch(extractOccasion(text)).catch(() => ({ outfits: [] }))
           ]);
 
           if (!outfits.outfits || outfits.outfits.length === 0) {
@@ -130,7 +130,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
 
           let responseText = '';
           const weatherText = weather.condition && weather.condition !== 'unknown' 
-            ? `the ${weather.condition} weather (${weather.temperature || ''}°C)` 
+            ? `the ${weather.condition} weather (${weather.temp ?? ''}°C)` 
             : 'your current weather';
             
           if (dna.has_dna && dna.styles) {
