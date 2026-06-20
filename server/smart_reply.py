@@ -1,4 +1,5 @@
 import os
+import re
 import asyncio
 import httpx
 
@@ -30,8 +31,25 @@ Rules:
 - Be concise, warm, and specific. No filler phrases.
 - When the user's wardrobe items are provided, reference them by name when relevant.
 - Never make up items that aren't in the wardrobe.
-- Format lists with bullet points (•) for readability.
+- Do NOT use markdown formatting of any kind — no asterisks, no **bold**, no # headers, no underscores for emphasis. Plain text only.
+- For lists, use a simple dash (-) followed by a space, one item per line. Do not use bullet characters or markdown list syntax.
+- Use a short plain-text line (e.g. "Neutral options:") instead of a bolded or markdown header to introduce a group of items.
 - Keep responses under 200 words unless a detailed breakdown is genuinely needed."""
+
+
+def _strip_markdown(text: str) -> str:
+    """Remove common markdown artifacts the model might still slip in,
+    despite the system prompt asking it not to. Safe on plain text —
+    only targets markdown-specific patterns, not regular punctuation."""
+    # Bold/italic markers: **text** or *text* or __text__ or _text_
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'(?<!\w)\*(.+?)\*(?!\w)', r'\1', text)
+    text = re.sub(r'__(.+?)__', r'\1', text)
+    # Markdown headers: lines starting with #
+    text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
+    # Markdown bullet markers (•, *, or - used as a list bullet at line start)
+    text = re.sub(r'^[•*]\s+', '- ', text, flags=re.MULTILINE)
+    return text.strip()
 
 
 async def _call_model(client: httpx.AsyncClient, model: str, messages: list) -> tuple[int, dict | str]:
@@ -106,7 +124,8 @@ async def get_llm_reply(message: str, wardrobe_items: list = None) -> str:
 
                 if status == 200 and isinstance(body, dict):
                     try:
-                        return body["choices"][0]["message"]["content"].strip()
+                        content = body["choices"][0]["message"]["content"].strip()
+                        return _strip_markdown(content)
                     except (KeyError, IndexError, TypeError):
                         last_status = "malformed response"
                         break  # try next model
