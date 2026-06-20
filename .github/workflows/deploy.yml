@@ -58,13 +58,23 @@ jobs:
     steps:
       - name: Deploy Luna server to EC2
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: OPENROUTER_API_KEY
           script: |
             cd ~/luna-stylist
             git pull origin main
+
+            # Inject secrets into luna.env (preserve existing vars, upsert the key)
+            touch ~/luna.env
+            grep -v "^OPENROUTER_API_KEY=" ~/luna.env > ~/luna.env.tmp || true
+            echo "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}" >> ~/luna.env.tmp
+            mv ~/luna.env.tmp ~/luna.env
+
             docker build -t luna-server ./server
             docker stop luna || true
             docker rm luna || true
