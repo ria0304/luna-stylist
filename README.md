@@ -68,6 +68,8 @@ Luna FastAPI server  (port 8001 · EC2 · Docker)
 Intent classifier  (regex + pattern matching → intent type)
     ↓
 Route to WYA endpoint  (wardrobe / outfits / style / gaps)
+             OR
+        OpenRouter LLM  (any other fashion question)
     ↓
 Format API response
     ↓
@@ -84,7 +86,7 @@ The classifier (`server/intent.py`) maps natural language to one of five intent 
 | `wardrobe_search` | "show me", "find my", "all my [color/type]" | `GET /wardrobe/search` |
 | `gap_analysis` | "what am I missing", "what do I need" | `GET /wardrobe/gaps` |
 | `style_explanation` | "why am I", "what's my aesthetic", "explain my style" | `GET /style/profile` |
-| `general` | anything else | Smart reply fallback — no WYA call |
+| `general` | anything else | OpenRouter LLM — answers any fashion question |
 
 ---
 
@@ -184,8 +186,8 @@ luna-stylist/
 **Backend (Luna server)**
 - FastAPI (Python)
 - httpx — async WYA API calls
-- Regex intent classifier — natural language → WYA route
-- Smart reply fallback — handles general conversation without hitting WYA
+- Regex intent classifier — natural language → WYA route or LLM
+- OpenRouter LLM (Llama 3.1 8B) — handles all general fashion Q&A without hitting WYA
 - Dockerized, deployed on AWS EC2 (ap-south-1), port 8001
 
 **AWS Infrastructure**
@@ -248,6 +250,7 @@ Pushes to `main` automatically trigger two parallel jobs via GitHub Actions:
 | `VITE_LUNA_API_URL` | Luna server URL (injected at build time) |
 | `EC2_HOST` | EC2 instance IP |
 | `EC2_SSH_KEY` | EC2 SSH private key |
+| `OPENROUTER_API_KEY` | OpenRouter API key for LLM fashion Q&A |
 
 **On EC2, create `~/luna.env` manually before first deploy:**
 ```bash
