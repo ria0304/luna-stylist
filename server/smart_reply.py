@@ -5,7 +5,10 @@ import httpx
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-
+# meta-llama/llama-3.1-8b-instruct:free was discontinued by OpenRouter (404).
+# meta-llama/llama-3.3-70b-instruct:free is the current working free slug,
+# confirmed live on 2026-06-20. Free-tier models can return 429 under load —
+# handled below with a short retry rather than failing immediately.
 MODEL = "meta-llama/llama-3.3-70b-instruct:free"
 
 MAX_RETRIES = 2
