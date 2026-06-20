@@ -1,13 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 import httpx
 import os
 from intent import classify_intent
-from smart_reply import get_llm_reply, get_instant_reply
+from smart_reply import get_instant_reply, get_llm_reply
 
-app = FastAPI(title="Luna API", version="2.0.0")
+app = FastAPI(title="Luna API", version="1.0.0", root_path="/luna-api")
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,7 +25,6 @@ WYA_API_URL = os.getenv("WYA_API_URL", "http://localhost:8000")
 class ChatRequest(BaseModel):
     message: str
     token: str
-    wardrobe_items: Optional[List[dict]] = None  # frontend passes these in
 
 class ChatResponse(BaseModel):
     reply: str
@@ -68,7 +67,7 @@ async def call_wya(method: str, path: str, token: str, **kwargs) -> dict:
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "luna-api", "version": "2.0.0"}
+    return {"status": "ok", "service": "luna-api"}
 
 
 @app.post("/auth/login", response_model=LoginResponse)
@@ -76,7 +75,7 @@ async def login(body: LoginRequest):
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                f"{WYA_API_URL}/api/auth/login",
+                f"{WYA_API_URL}/auth/login",
                 json={"email": body.email, "password": body.password},
                 timeout=10.0,
             )
@@ -92,35 +91,27 @@ async def login(body: LoginRequest):
 async def chat(body: ChatRequest):
     intent = classify_intent(body.message)
 
-    # Structured intents — route to WYA endpoints directly
     if intent == "outfit_suggestion":
-        data = await call_wya("POST", "/api/ai/outfit-match-context", body.token,
-                               json={"context": {"occasion": "everyday"}, "limit": 1})
+        data = await call_wya("POST", "/outfits/generate", body.token, json={"prompt": body.message})
         reply = format_outfits(data)
 
     elif intent == "wardrobe_search":
         query = extract_search_query(body.message)
-        data = await call_wya("GET", f"/api/wardrobe/search?q={query}", body.token)
+        data = await call_wya("GET", f"/wardrobe/search?q={query}", body.token)
         reply = format_wardrobe(data)
 
     elif intent == "gap_analysis":
-        data = await call_wya("POST", "/api/ai/gap-analysis", body.token, json={})
+        data = await call_wya("GET", "/wardrobe/gaps", body.token)
         reply = format_gaps(data)
 
     elif intent == "style_explanation":
-        # style DNA doesn't need user_id in path on some routes — adjust if needed
-        data = await call_wya("GET", "/api/style/analytics", body.token)
+        data = await call_wya("GET", "/style/profile", body.token)
         reply = format_style(data)
 
     else:
-        # ── General fashion Q&A via LLM ──────────────────────────────────────
         data = None
         instant = get_instant_reply(body.message)
-        if instant:
-            reply = instant
-        else:
-            # FIXED: Removed body.wardrobe_items or [] - it was causing the 500 error
-            reply = await get_llm_reply(body.message)
+        reply = instant if instant else await get_llm_reply(body.message, body.wardrobe_items or [])
 
     return ChatResponse(reply=reply, intent=intent, data=data)
 
@@ -131,13 +122,11 @@ def format_outfits(data: dict) -> str:
     outfits = data.get("outfits", [])
     if not outfits:
         return "I couldn't find a great outfit match right now. Try adding more items to your wardrobe!"
-    outfit = outfits[0]
-    items = outfit.get("items", [])
-    item_names = ", ".join(
-        i.get("name", "Item") for i in items if isinstance(i, dict)
-    ) if items and isinstance(items[0], dict) else ", ".join(items)
-    style = outfit.get("style", "")
-    return f"Here's what I put together for you{' (' + style + ')' if style else ''}:\n\n{item_names}"
+    lines = ["Here's what I put together for you:\n"]
+    for i, outfit in enumerate(outfits[:3], 1):
+        items = ", ".join(outfit.get("items", []))
+        lines.append(f"{i}. {items}")
+    return "\n".join(lines)
 
 def format_wardrobe(data: dict) -> str:
     items = data.get("items", [])
@@ -155,18 +144,23 @@ def format_gaps(data: dict) -> str:
     if not gaps:
         return "Your wardrobe looks pretty complete! No major gaps found."
     lines = ["Here's what your wardrobe is missing:\n"]
-    for gap in gaps[:5]:
-        category = gap.get("category", "Item") if isinstance(gap, dict) else gap
-        suggestion = gap.get("suggestion", "") if isinstance(gap, dict) else ""
-        lines.append(f"• {category}" + (f" — {suggestion}" if suggestion else ""))
+    for gap in gaps:
+        lines.append(f"• {gap}")
     return "\n".join(lines)
 
 def format_style(data: dict) -> str:
-    aesthetic = data.get("aesthetic_type") or data.get("style_archetype") or "unique"
-    return f"Your style is **{aesthetic}**. Ask me to break it down further or suggest outfits around it."
+    aesthetic = data.get("aesthetic_type", "unique")
+    traits = data.get("traits", [])
+    desc = data.get("description", "")
+    lines = [f"Your style is **{aesthetic}**."]
+    if traits:
+        lines.append("Key traits: " + ", ".join(traits))
+    if desc:
+        lines.append(f"\n{desc}")
+    return "\n".join(lines)
 
 def extract_search_query(message: str) -> str:
-    stopwords = {"show", "me", "my", "find", "all", "the", "i", "have", "got", "what", "do", "in"}
+    stopwords = ["show", "me", "my", "find", "all", "the", "i", "have", "got"]
     words = message.lower().split()
     filtered = [w for w in words if w not in stopwords]
     return "+".join(filtered) if filtered else message
