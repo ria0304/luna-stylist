@@ -3,7 +3,7 @@
  * Routes natural language directly to WYA's real orchestration API endpoints.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   UserSession,
   ChatMessage,
@@ -34,6 +34,16 @@ export default function Chat({ session, onLogout }: ChatProps) {
   const [allItems, setAllItems]       = useState<WardrobeItem[]>([]);
   const [loadingCloset, setLoadingCloset] = useState(false);
 
+  // Refs that always reflect the live state, used inside handleSendMessage
+  // below. Closure-captured state (`allItems`, `loadingCloset` directly)
+  // would be frozen to whatever value existed when a given call to
+  // handleSendMessage started, even if the wardrobe finishes loading
+  // moments later — these refs avoid that staleness.
+  const allItemsRef = useRef(allItems);
+  allItemsRef.current = allItems;
+  const loadingClosetRef = useRef(loadingCloset);
+  loadingClosetRef.current = loadingCloset;
+
   useEffect(() => {
     setMessages([{
       id: 'welcome',
@@ -59,6 +69,18 @@ export default function Chat({ session, onLogout }: ChatProps) {
   }, []);
 
   const handleSendMessage = async (text: string) => {
+    // If the wardrobe is still loading, give it a brief moment to finish
+    // rather than sending wardrobe-dependent questions (especially the
+    // general LLM fallback in buildResponse's default case) with stale or
+    // empty wardrobe data. Capped at ~3s so a slow/failed fetch never
+    // blocks the user indefinitely.
+    if (loadingClosetRef.current) {
+      const start = Date.now();
+      while (loadingClosetRef.current && Date.now() - start < 3000) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+    }
+
     const intent = classifyIntent(text);
 
     const userMsg: ChatMessage = {
@@ -371,7 +393,7 @@ export default function Chat({ session, onLogout }: ChatProps) {
       }
 
       default: {
-        return buildSmartReply(text, allItems, base, session.token);
+        return buildSmartReply(text, allItemsRef.current, base, session.token);
       }
     }
   };
