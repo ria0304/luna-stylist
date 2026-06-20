@@ -17,7 +17,7 @@ Luna connects to [WYA](https://github.com/ria0304/WYA-Whats-Your-Aesthetic)'s fa
 
 > **Live →** https://d34nojihupg1cl.cloudfront.net/
 >
-> ⚠️ **Status:** Requires a WYA account. The WYA EC2 backend is currently paused to manage AWS costs — API features (wardrobe, outfit matching, gap analysis) are offline. Frontend and Luna server are live. To run the full stack, see [Run Locally](#run-locally).
+> ⚠️ **Status:** Requires a WYA account. The WYA EC2 backend and luna server  are currently paused to manage AWS costs — API features (wardrobe, outfit matching, gap analysis) are offline. Frontend   is live. To run the full stack, see [Run Locally](#run-locally).
 
 </div>
 
