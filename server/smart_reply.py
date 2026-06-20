@@ -5,11 +5,12 @@ import httpx
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# meta-llama/llama-3.1-8b-instruct:free was discontinued by OpenRouter (404).
-# meta-llama/llama-3.3-70b-instruct:free is the current working free slug,
-# confirmed live on 2026-06-20. Free-tier models can return 429 under load —
-# handled below with a short retry rather than failing immediately.
-MODEL = "meta-llama/llama-3.3-70b-instruct:free"
+# Try these models in order (fallback if rate-limited)
+MODELS = [
+    "google/gemini-flash-1.5:free",
+    "mistralai/mistral-7b-instruct:free",
+    "meta-llama/llama-3.2-3b-instruct:free"
+]
 
 MAX_RETRIES = 2
 BASE_BACKOFF_SECONDS = 2
@@ -29,9 +30,7 @@ Rules:
 async def get_llm_reply(message: str, wardrobe_items: list = None) -> str:
     """Call OpenRouter with the user message and optional wardrobe context.
 
-    Retries on 429 (rate-limited upstream) with short backoff, since
-    OpenRouter's free-tier models can be temporarily saturated rather
-    than genuinely unavailable.
+    Tries multiple models in sequence if one is rate-limited.
     """
 
     if not OPENROUTER_API_KEY:
@@ -61,50 +60,51 @@ async def get_llm_reply(message: str, wardrobe_items: list = None) -> str:
         }
     ]
 
-    last_error_detail = ""
-
-    async with httpx.AsyncClient(timeout=20.0) as client:
+    # Try each model in sequence
+    for model in MODELS:
         for attempt in range(MAX_RETRIES + 1):
             try:
-                response = await client.post(
-                    OPENROUTER_URL,
-                    headers={
-                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://luna-stylist.app",
-                        "X-Title": "Luna Stylist",
-                    },
-                    json={
-                        "model": MODEL,
-                        "messages": messages,
-                        "max_tokens": 400,
-                        "temperature": 0.7,
-                    }
-                )
+                async with httpx.AsyncClient(timeout=20.0) as client:
+                    response = await client.post(
+                        OPENROUTER_URL,
+                        headers={
+                            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                            "Content-Type": "application/json",
+                            "HTTP-Referer": "https://luna-stylist.app",
+                            "X-Title": "Luna Stylist",
+                        },
+                        json={
+                            "model": model,
+                            "messages": messages,
+                            "max_tokens": 400,
+                            "temperature": 0.7,
+                        }
+                    )
 
-                if response.status_code == 429:
-                    last_error_detail = "rate-limited"
-                    if attempt < MAX_RETRIES:
-                        # Respect Retry-After if present, else exponential backoff
-                        retry_after = response.headers.get("Retry-After")
-                        wait = float(retry_after) if retry_after else BASE_BACKOFF_SECONDS * (2 ** attempt)
-                        await asyncio.sleep(min(wait, 10))
-                        continue
-                    return "My AI's a little overwhelmed with requests right now — give it a few seconds and try that again."
+                    if response.status_code == 429:
+                        if attempt < MAX_RETRIES:
+                            retry_after = response.headers.get("Retry-After")
+                            wait = float(retry_after) if retry_after else BASE_BACKOFF_SECONDS * (2 ** attempt)
+                            await asyncio.sleep(min(wait, 10))
+                            continue
+                        # Rate limit persists - try next model
+                        break
 
-                response.raise_for_status()
-                data = response.json()
-                return data["choices"][0]["message"]["content"].strip()
+                    response.raise_for_status()
+                    data = response.json()
+                    return data["choices"][0]["message"]["content"].strip()
 
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 404:
-                    # Model slug itself is gone/discontinued — not a transient issue
-                    return "My AI model needs an update on the backend — ask your developer to check the OpenRouter model slug."
-                last_error_detail = str(e.response.status_code)
-                return f"My AI is having a moment — got a {e.response.status_code} from OpenRouter. Try again shortly."
+                    # Model not found - try next model
+                    break
+                return f"My AI is having a moment — got a {e.response.status_code}. Try again shortly."
             except Exception:
-                last_error_detail = "connection error"
-                return "I couldn't reach my AI right now. Check your connection and try again."
+                if attempt < MAX_RETRIES:
+                    await asyncio.sleep(1)
+                    continue
+                # Try next model
+                break
 
     return "My AI's a little overwhelmed with requests right now — give it a few seconds and try that again."
 
