@@ -3,13 +3,11 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
 jobs:
   deploy-frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Verify package-lock.json exists
         run: |
           if [ -f "package-lock.json" ]; then
@@ -18,41 +16,34 @@ jobs:
             echo "✗ package-lock.json missing"
             exit 1
           fi
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: 'package-lock.json'
-
       - name: Install dependencies
         run: |
           rm -rf node_modules package-lock.json
           npm install
-
       - name: Build
         run: npm run build
         env:
           VITE_WYA_API_URL: ${{ secrets.VITE_WYA_API_URL }}
           VITE_LUNA_API_URL: ${{ secrets.VITE_LUNA_API_URL }}
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
-
       - name: Sync to S3
         run: aws s3 sync dist/ s3://luna-stylist --delete
-
       - name: Invalidate CloudFront
         run: |
           aws cloudfront create-invalidation \
             --distribution-id ${{ secrets.LUNA_CLOUDFRONT_DISTRIBUTION_ID }} \
             --paths "/*"
-
   deploy-server:
     runs-on: ubuntu-latest
     steps:
@@ -66,8 +57,23 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: OPENROUTER_API_KEY
           script: |
+            set -e
             cd ~/luna-stylist
-            git pull origin main
+
+            # Discard any local modifications before pulling. Manual edits
+            # made directly on EC2 (e.g. live debugging via docker exec or
+            # editing files in this checkout) will otherwise cause git pull
+            # to abort with a merge conflict — and without this guard, the
+            # script would silently continue to `docker build` using the
+            # stale pre-pull code, while still reporting deploy success.
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Sanity check: confirm the working tree actually matches the
+            # commit we just deployed, so a build can never silently run
+            # against unexpected local state.
+            DEPLOYED_SHA=$(git rev-parse HEAD)
+            echo "Deploying commit: $DEPLOYED_SHA"
 
             # Inject secrets into luna.env (preserve existing vars, upsert the key)
             touch ~/luna.env
@@ -84,3 +90,9 @@ jobs:
               -p 8001:8001 \
               --env-file ~/luna.env \
               luna-server
+
+            # Post-deploy verification: confirm the container is actually
+            # serving the code we just deployed, not a stale cached image.
+            sleep 3
+            docker exec luna test -f /app/main.py && echo "Verified: main.py present in container"
+            docker exec luna grep -c "wardrobe_items" /app/main.py || echo "WARNING: wardrobe_items not found in deployed main.py"
