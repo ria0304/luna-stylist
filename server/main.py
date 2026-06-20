@@ -119,7 +119,8 @@ async def chat(body: ChatRequest):
         if instant:
             reply = instant
         else:
-            reply = await get_llm_reply(body.message, body.wardrobe_items or [])
+            # FIXED: Removed body.wardrobe_items or [] - it was causing the 500 error
+            reply = await get_llm_reply(body.message)
 
     return ChatResponse(reply=reply, intent=intent, data=data)
 
