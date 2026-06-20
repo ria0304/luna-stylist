@@ -15,7 +15,7 @@
 **A chat interface that lets you talk to your wardrobe in plain English.**
 Luna connects to [WYA](https://github.com/ria0304/WYA-Whats-Your-Aesthetic)'s fashion intelligence API so before you say a word, it already knows what you own, what your aesthetic is, and what you're missing.
 
-> **Live →** http://luna-stylist.s3-website.ap-south-1.amazonaws.com/
+> **Live →** https://d34nojihupg1cl.cloudfront.net/
 >
 > ⚠️ **Status:** Requires a WYA account. The WYA EC2 backend is currently paused to manage AWS costs — API features (wardrobe, outfit matching, gap analysis) are offline. Frontend and Luna server are live. To run the full stack, see [Run Locally](#run-locally).
 
@@ -252,7 +252,7 @@ Pushes to `main` automatically trigger two parallel jobs via GitHub Actions:
 **On EC2, create `~/luna.env` manually before first deploy:**
 ```bash
 WYA_API_URL=http://<EC2-IP>:8000
-ALLOWED_ORIGINS=http://luna-stylist.s3-website.ap-south-1.amazonaws.com
+ALLOWED_ORIGINS=https://d34nojihupg1cl.cloudfront.net
 ```
 
 ---
