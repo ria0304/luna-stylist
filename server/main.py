@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import httpx
 import os
 from intent import classify_intent
@@ -25,6 +25,7 @@ WYA_API_URL = os.getenv("WYA_API_URL", "http://localhost:8000")
 class ChatRequest(BaseModel):
     message: str
     token: str
+    wardrobe_items: Optional[List[dict]] = None
 
 class ChatResponse(BaseModel):
     reply: str
