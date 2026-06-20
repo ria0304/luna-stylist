@@ -84,10 +84,6 @@ export default function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
           </motion.button>
         </div>
       </form>
-
-      <p className="max-w-3xl mx-auto mt-2 text-center text-[10px] text-zinc-400 font-sans tracking-tight">
-        Luna reads your real wardrobe from WYA — nothing is stored here.
-      </p>
     </div>
   );
 }
