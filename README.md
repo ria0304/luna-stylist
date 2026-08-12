@@ -24,6 +24,14 @@ Luna connects to [WYA](https://github.com/ria0304/WYA-Whats-Your-Aesthetic)'s fa
 
 ---
 
+## Screenshots
+
+| Sign in | Chat | Wardrobe panel |
+|---|---|---|
+| ![Luna sign-in screen](docs/screenshots/login.png) | ![Luna chat interface](docs/screenshots/chat.png) | ![Wardrobe panel synced from WYA](docs/screenshots/wardrobe-panel.png) |
+
+---
+
 ## Problem Statement
 
 Wardrobe apps show you what you own. Fashion apps show you what's trending. Neither one lets you just *ask*.
@@ -149,6 +157,12 @@ luna-stylist/
 ├── tsconfig.json
 ├── package.json
 ├── .env.example
+│
+├── docs/
+│   └── screenshots/
+│       ├── login.png
+│       ├── chat.png
+│       └── wardrobe-panel.png
 │
 ├── .github/
 │   └── workflows/
