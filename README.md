@@ -26,9 +26,14 @@ Luna connects to [WYA](https://github.com/ria0304/WYA-Whats-Your-Aesthetic)'s fa
 
 ## Screenshots
 
-| Sign in | Chat | Wardrobe panel |
-|---|---|---|
-| ![Luna sign-in screen](docs/screenshots/login.png) | ![Luna chat interface](docs/screenshots/chat.png) | ![Wardrobe panel synced from WYA](docs/screenshots/wardrobe-panel.png) |
+**Sign in**
+<img src="docs/screenshots/login.png" width="800" alt="Luna sign-in screen" />
+
+**Chat**
+<img src="docs/screenshots/chat.png" width="800" alt="Luna chat interface" />
+
+**Wardrobe panel**
+<img src="docs/screenshots/wardrobe-panel.png" width="800" alt="Wardrobe panel synced from WYA" />
 
 ---
 
